@@ -1,0 +1,139 @@
+{
+  "platform": "eis",
+  "captured_at": "2026-08-08T00:00:00+00:00",
+  "source": "plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-card-anchors.md",
+  "card_tabs": {
+    "common-info": {
+      "status": "measured",
+      "anchors": [
+        {
+          "selector": "div#positionKTRU",
+          "critical": true,
+          "min_matches": 1
+        },
+        {
+          "selector": "span.section__title",
+          "critical": true,
+          "min_matches": 1
+        },
+        {
+          "selector": "span.section__info",
+          "critical": true,
+          "min_matches": 1
+        }
+      ],
+      "key_fields": [
+        "ikz_year",
+        "ikz_customer_code",
+        "ikz_plan_number",
+        "ikz_plangraph_number",
+        "ikz_okpd_class",
+        "ikz_okpd_subclass",
+        "ikz_okpd_group",
+        "ikz_kvr",
+        "etp_name",
+        "etp_url",
+        "contact_person_name",
+        "contact_person_email",
+        "financing_rows",
+        "items",
+        "parties"
+      ]
+    },
+    "documents": {
+      "status": "measured",
+      "anchors": [
+        {
+          "selector": "div.blockFilesTabDocs",
+          "critical": true,
+          "min_matches": 1
+        },
+        {
+          "selector": "a[href*=filestore]",
+          "critical": true,
+          "min_matches": 1,
+          "content_dependent": true
+        },
+        {
+          "selector": "div.attachment",
+          "critical": true,
+          "min_matches": 1,
+          "content_dependent": true
+        }
+      ],
+      "key_fields": [
+        "documents"
+      ]
+    },
+    "event-journal": {
+      "status": "measured",
+      "anchors": [
+        {
+          "selector": "table#event",
+          "critical": true,
+          "min_matches": 1
+        }
+      ],
+      "key_fields": [
+        "entries"
+      ]
+    },
+    "supplier-results": {
+      "status": "measured",
+      "anchors": [
+        {
+          "selector": "section.blockInfo__section",
+          "critical": true,
+          "min_matches": 1
+        },
+        {
+          "selector": "span.section__title",
+          "critical": true,
+          "min_matches": 1
+        },
+        {
+          "selector": "div[id^=\"supplier-def-result-participant-table-\"] table.tableBlock",
+          "critical": true,
+          "min_matches": 1,
+          "content_dependent": true
+        }
+      ],
+      "key_fields": [
+        "protocol",
+        "bids",
+        "award"
+      ]
+    }
+  },
+  "listing_csv": {
+    "required_headers": [
+      "Реестровый номер закупки",
+      "Дата обновления",
+      "Начальная (максимальная) цена контракта"
+    ]
+  },
+  "thresholds": {
+    "listing_filter": {
+      "max_overlap_share": 0.032,
+      "source_measurement": "16/500 (P1, 2026-08-06); некалиброванный порог"
+    },
+    "card_parse": {
+      "min_sample": 1,
+      "degraded_share": 0.05,
+      "broken_share": 0.2
+    },
+    "listing_shape": {
+      "min_sample": 1,
+      "degraded_share": 0.05,
+      "broken_share": 0.2,
+      "row_error_share_bad_threshold": 0.2,
+      "row_error_share_denominator": "rows_total"
+    },
+    "estimate_fields": {
+      "min_sample": 1,
+      "degraded_share": 0.05,
+      "broken_share": 0.2
+    }
+  },
+  "calibrated": false
+}

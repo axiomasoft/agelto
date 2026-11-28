@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "fixture": "mixed-native-scan-blank.pdf",
+  "sha256": "4edf05f1bf65607e5f380d9728b8ca975ddf042984acf14008ea9f5fb549461a",
+  "source_pages": 3,
+  "pages": [
+    {
+      "page": 1,
+      "status": "native_text",
+      "contains": "NATIVE ANCHOR ONE"
+    },
+    {
+      "page": 2,
+      "status": "ocr_text",
+      "contains": "SCANNED ANCHOR TWO"
+    },
+    {
+      "page": 3,
+      "status": "unrecognized",
+      "reason": "empty_is_not_blank_proof"
+    }
+  ],
+  "skip_timeout_case": {
+    "tesseract_timeout_seconds": 0,
+    "page_2_status": "unrecognized",
+    "automatic_complete": false
+  },
+  "provenance": "Synthetic PDF, handwritten PDF objects and raster text; no external documents or personal data; expected statuses reviewed independently of extraction.",
+  "scenario_ids": [
+    "T26",
+    "T25"
+  ]
+}

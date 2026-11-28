@@ -1,0 +1,8 @@
+{
+    "document_type": "estimate",
+    "confidence": 1.0,
+    "summary": "Пограничный случай скрининга: бланк акта и обоснования расценок есть, стоимостного блока нет вовсе — документ, который по форме смета, а по содержанию ведомость объёмов",
+    "estimate_cardinality": "single",
+    "tags": [],
+    "classification_note": null
+}

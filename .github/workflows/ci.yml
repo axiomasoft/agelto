@@ -1,0 +1,591 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 4 * * 1'
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  ENV_FILE: .env.example
+  IMAGE_TAG: ci-${{ github.sha }}
+
+jobs:
+  # Path-aware routing: decides which expensive jobs a change actually needs. Scheduled,
+  # manual and release runs always take the full path.
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      php: ${{ steps.full.outputs.all == 'true' || steps.filter.outputs.php == 'true' }}
+      docs: ${{ steps.full.outputs.all == 'true' || steps.filter.outputs.docs == 'true' }}
+      browser: ${{ steps.full.outputs.all == 'true' || steps.filter.outputs.browser == 'true' }}
+      image: ${{ steps.full.outputs.all == 'true' || steps.filter.outputs.image == 'true' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # Local push comparisons need the before SHA even for a multi-commit push.
+          fetch-depth: ${{ github.event_name == 'push' && '0' || '1' }}
+      - id: full
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          case "$EVENT" in
+            pull_request|push) echo 'all=false' >> "$GITHUB_OUTPUT" ;;
+            *) echo 'all=true' >> "$GITHUB_OUTPUT" ;;
+          esac
+      - id: filter
+        if: steps.full.outputs.all != 'true'
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            php:
+              - 'app/**'
+              - 'bootstrap/**'
+              - 'config/**'
+              - 'database/**'
+              - 'routes/**'
+              - 'resources/**'
+              - 'lang/**'
+              - 'tests/**'
+              - 'estimates/**'
+              - 'artisan'
+              - 'composer.json'
+              - 'composer.lock'
+              - 'phpunit.xml'
+              - 'phpstan.neon'
+              - '.env*.example'
+              - 'docker-compose*.yml'
+              - 'scripts/**'
+              - 'public/**'
+              - 'docker/**'
+              - 'Makefile'
+              - '.github/**'
+            docs:
+              - 'docs/**'
+              - '**/*.md'
+              - 'scripts/documentation/**'
+            browser:
+              - 'e2e/**'
+              - 'playwright.config.ts'
+              - 'docker/tests/clean-install-e2e.sh'
+            image:
+              - 'docker-compose*.yml'
+              - 'docs/**'
+              - 'public/**'
+              - 'docker/**'
+              - '.dockerignore'
+              - 'composer.json'
+              - 'composer.lock'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'vite.config.js'
+              - 'resources/**'
+              - 'scripts/documentation/**'
+              - '.github/**'
+
+  # Cheap gate (no Docker rig): workflow lint, CI contract, rig unit tests, Pint and PHPStan.
+  # Everything expensive waits for it, so a style or type error costs minutes, not hours.
+  preflight:
+    name: Preflight (lint, static analysis, rig unit tests)
+    needs: changes
+    if: needs.changes.outputs.php == 'true' || needs.changes.outputs.docs == 'true' || needs.changes.outputs.image == 'true' || needs.changes.outputs.browser == 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-vendors
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.6'
+          extensions: intl, bcmath, pdo_pgsql
+          tools: composer:v2
+          coverage: none
+      - name: Resolve Composer cache directory
+        id: composer-cache
+        run: printf 'dir=%s\n' "$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+      # Same trust rule as the rig cache: pull requests only read, pushes to main write.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: composer-restore
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: preflight-composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+          restore-keys: preflight-composer-${{ runner.os }}-
+      - name: Install locked PHP dependencies
+        env:
+          COMPOSER_IGNORE_PLATFORM_REQ: php+
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Verify that only mpdf needs the PHP upper-bound waiver
+        run: php docker/tests/php-platform-contract.php
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: github.event_name == 'push' && steps.composer-restore.outputs.cache-hit != 'true'
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ steps.composer-restore.outputs.cache-primary-key }}
+      - name: CI contract (actionlint, pinned actions, job wiring)
+        run: bash docker/tests/ci-contract.sh
+      - name: Rig and tooling unit tests
+        run: python3 -B -m unittest discover -s docker/tests/process-core -p 'test_*.py'
+      - name: Pint
+        run: vendor/bin/pint --test --parallel
+      - name: PHPStan
+        run: vendor/bin/phpstan analyse --memory-limit=2G --no-progress
+
+  quality:
+    name: Quality and static analysis
+    needs: [changes, preflight]
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 45
+    env:
+      PROCESS_CORE_SUITE_TIMEOUT: 1200
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-core-test
+        with:
+          write-cache: ${{ github.event_name == 'push' }}
+      - name: Run isolated quality checks
+        run: make core-quality
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: quality-${{ github.sha }}
+          path: storage/app/testing/process-core/reports/
+          if-no-files-found: error
+          retention-days: 14
+
+  tests:
+    name: PHP tests (${{ matrix.shard }}/4)
+    needs: [changes, preflight]
+    if: (github.event_name == 'pull_request' || github.event_name == 'push') && needs.changes.outputs.php == 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-core-test
+      - name: Run one isolated no-TIA shard
+        env:
+          PROCESS_CORE_SUITE_TIMEOUT: 1500
+          SHARD: ${{ matrix.shard }}/4
+        run: make core-test-shard
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: junit-shard-${{ matrix.shard }}-${{ github.sha }}
+          path: storage/app/testing/process-core/reports/
+          if-no-files-found: error
+          retention-days: 14
+
+  release-samples:
+    name: Release quality samples (${{ matrix.group }})
+    needs: preflight
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'release'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [serial, profile, random, selected]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-core-test
+      - name: Collect full no-TIA samples for this group
+        env:
+          PROCESS_CORE_RELEASE_GROUP: ${{ matrix.group }}
+        run: make core-test-release-sample
+      - name: Check this group's time budget immediately
+        if: matrix.group == 'serial' || matrix.group == 'profile'
+        shell: bash
+        env:
+          RELEASE_GROUP: ${{ matrix.group }}
+        run: |
+          python3 - <<'PY'
+          import os, subprocess
+          from pathlib import Path
+          group = os.environ['RELEASE_GROUP']
+          proofs = list(Path('storage/app/testing/process-core/reports').glob('*/release-quality/provenance-' + group + '.json'))
+          if len(proofs) != 1:
+              raise SystemExit(f'Expected one {group} proof, found {len(proofs)}')
+          subprocess.run(['python3', 'docker/scripts/check-sample-budget.py', group, 'tests/performance-budget.json', str(proofs[0].parent)], check=True)
+          PY
+      - name: Stage this group's evidence
+        shell: bash
+        env:
+          RELEASE_GROUP: ${{ matrix.group }}
+        run: |
+          python3 - <<'PY'
+          import os, shutil
+          from pathlib import Path
+          group = os.environ['RELEASE_GROUP']
+          reports = Path('storage/app/testing/process-core/reports')
+          proofs = list(reports.glob('*/release-quality/provenance-' + group + '.json'))
+          if len(proofs) != 1:
+              raise SystemExit(f'Expected one {group} proof, found {len(proofs)}')
+          shutil.copytree(proofs[0].parent, Path('ci-artifacts/release-quality-group'))
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-quality-group-${{ github.sha }}-${{ matrix.group }}
+          path: ci-artifacts/release-quality-group/
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: release-quality-failure-${{ github.sha }}-${{ matrix.group }}
+          path: storage/app/testing/process-core/reports/
+          if-no-files-found: warn
+          retention-days: 14
+
+  coverage-shards:
+    name: Coverage shard (${{ matrix.shard }}/4)
+    needs: preflight
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'release'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-core-test
+      - name: Collect one complete coverage shard
+        env:
+          PROCESS_CORE_RELEASE_GROUP: coverage-${{ matrix.shard }}
+        run: make core-test-release-sample
+      - name: Stage this shard's evidence
+        shell: bash
+        env:
+          COVERAGE_SHARD: ${{ matrix.shard }}
+        run: |
+          python3 - <<'PY'
+          import os, shutil
+          from pathlib import Path
+          group = 'coverage-' + os.environ['COVERAGE_SHARD']
+          proofs = list(Path('storage/app/testing/process-core/reports').glob('*/release-quality/provenance-' + group + '.json'))
+          if len(proofs) != 1:
+              raise SystemExit(f'Expected one {group} proof, found {len(proofs)}')
+          shutil.copytree(proofs[0].parent, Path('ci-artifacts/coverage-shard'))
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-quality-group-${{ github.sha }}-coverage-${{ matrix.shard }}
+          path: ci-artifacts/coverage-shard/
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: coverage-shard-failure-${{ github.sha }}-${{ matrix.shard }}
+          path: storage/app/testing/process-core/reports/
+          if-no-files-found: warn
+          retention-days: 14
+
+  coverage-merge:
+    name: Merge coverage and check floors
+    needs: [preflight, coverage-shards]
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'release'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Serialized coverage contains source paths from the isolated app container.
+      - uses: ./.github/actions/setup-core-test
+      - name: Prepare the isolated schema for readiness verification
+        run: make core-test-reset
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-quality-group-${{ github.sha }}-coverage-*
+          path: ci-artifacts/release-quality-groups
+      - name: Merge shards and check unchanged coverage floors
+        run: |
+          python3 docker/scripts/merge-coverage-shards.py ci-artifacts/release-quality-groups
+          python3 docker/scripts/check-coverage-floor.py tests/performance-budget.json "ci-artifacts/release-quality-groups/release-quality-group-$GITHUB_SHA-coverage/coverage-clover.xml"
+          python3 docker/scripts/check-sample-budget.py coverage tests/performance-budget.json "ci-artifacts/release-quality-groups/release-quality-group-$GITHUB_SHA-coverage"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-quality-group-${{ github.sha }}-coverage
+          path: ci-artifacts/release-quality-groups/release-quality-group-${{ github.sha }}-coverage/
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: coverage-merge-failure-${{ github.sha }}
+          path: ci-artifacts/release-quality-groups/
+          if-no-files-found: warn
+          retention-days: 14
+
+  release-quality:
+    name: Release quality and coverage evidence
+    needs: [preflight, release-samples, coverage-merge]
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'release'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-quality-group-${{ github.sha }}-*
+          path: ci-artifacts/release-quality-groups
+      - name: Verify all 13 samples and enforce coverage and time budgets
+        run: |
+          python3 docker/scripts/release-quality-groups.py verify ci-artifacts/release-quality-groups ci-artifacts/release-quality --require-coverage-shards
+          python3 docker/scripts/check-release-quality.py \
+            --budget tests/performance-budget.json \
+            --evidence ci-artifacts/release-quality \
+            --write-summary ci-artifacts/release-quality/summary.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-quality-${{ github.sha }}
+          path: ci-artifacts/release-quality/
+          if-no-files-found: error
+          retention-days: 14
+
+  faults:
+    name: Process Core fault suite
+    needs: [changes, preflight]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-core-test
+      - run: make core-test-faults
+        env:
+          PROCESS_CORE_SUITE_TIMEOUT: 1800
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: faults-${{ github.sha }}
+          path: storage/app/testing/process-core/reports/
+          if-no-files-found: error
+          retention-days: 14
+
+  load:
+    name: Process Core load suite (width ${{ matrix.width }})
+    needs: preflight
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'release'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        width: [10, 20]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-core-test
+      - name: Run the isolated load suite
+        env:
+          PROCESS_CORE_SUITE_TIMEOUT: 2700
+          WIDTH: ${{ matrix.width }}
+        run: make core-test-load
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: load-${{ matrix.width }}-${{ github.sha }}
+          path: storage/app/testing/process-core/reports/
+          if-no-files-found: error
+          retention-days: 14
+
+  e2e:
+    name: Playwright clean install acceptance
+    needs: [changes, preflight]
+    if: needs.changes.outputs.browser == 'true' || (github.event_name != 'pull_request' && (needs.changes.outputs.php == 'true' || needs.changes.outputs.image == 'true'))
+    runs-on: ubuntu-26.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '26'
+          # setup-node v5+ caches automatically when package.json declares packageManager;
+          # caches are written only by the explicit trusted-push steps.
+          package-manager-cache: false
+      # vendor-sync's Composer check needs the same PHP floor as composer.json; the runner
+      # image ships an older PHP.
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.6'
+          tools: composer:v2
+          coverage: none
+      - uses: ./.github/actions/setup-vendors
+      - name: Run the isolated production install and browser tests
+        env:
+          E2E_ARTIFACT_DIR: ci-artifacts
+        run: bash docker/tests/clean-install-e2e.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: playwright-${{ github.sha }}
+          path: |
+            ci-artifacts/playwright-report/index.html
+            ci-artifacts/playwright-report/**
+            ci-artifacts/test-results/**
+          if-no-files-found: error
+          retention-days: 14
+
+  # Also on pull requests that touch image inputs: a broken Dockerfile should fail before merge.
+  # After merge the image is rebuilt for any code change because it embeds the application.
+  build-security:
+    name: Immutable build and security
+    needs: changes
+    if: needs.changes.outputs.image == 'true' || (github.event_name != 'pull_request' && needs.changes.outputs.php == 'true')
+    runs-on: ubuntu-26.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '26'
+          # setup-node v5+ caches automatically when package.json declares packageManager;
+          # caches are written only by the explicit trusted-push steps.
+          package-manager-cache: false
+      - uses: ./.github/actions/setup-vendors
+      # image-pair.sh dry-runs `composer install` on the host before building; the runner's
+      # bundled PHP is older than composer.json's ^8.6.
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.6'
+          tools: composer:v2
+          coverage: none
+      - name: Audit locked frontend dependencies
+        run: pnpm audit --audit-level=high
+      - name: Build immutable image pair
+        run: |
+          make image:build IMAGE_TAG=${{ env.IMAGE_TAG }}
+          docker build --build-arg SOURCE_SHA=${{ github.sha }} -t agelto/postgres:${{ env.IMAGE_TAG }} docker/postgres
+      # The scans block on HIGH/CRITICAL findings that have a fixed package. Debian marks most
+      # base-image findings "affected" with no fix, and those cannot be removed by a rebuild.
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: agelto/app:${{ env.IMAGE_TAG }}
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+          cache: false
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: agelto/doctor:${{ env.IMAGE_TAG }}
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+          cache: false
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: agelto/worker-prepare:${{ env.IMAGE_TAG }}
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+          cache: false
+      - name: Scope the gosu exception to the reviewed PostgreSQL image
+        id: gosu
+        env:
+          REVIEWED_BASE: postgres:19@sha256:4ea94de574c17f0372722806c949757050fbb1cd7648410fe45d6bba275cc00e
+        run: |
+          if [[ $(date -u +%F) < 2027-05-31 ]] && grep -Fxq "FROM $REVIEWED_BASE" docker/postgres/Dockerfile; then
+            upstream=$(docker run --rm --entrypoint sha256sum "$REVIEWED_BASE" /usr/local/bin/gosu)
+            shipped=$(docker run --rm --entrypoint sha256sum "agelto/postgres:$IMAGE_TAG" /usr/local/bin/gosu)
+            if [[ "$upstream" == "$shipped" ]]; then
+              echo 'path=usr/local/bin/gosu' >> "$GITHUB_OUTPUT"
+            fi
+          fi
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: agelto/postgres:${{ env.IMAGE_TAG }}
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+          cache: false
+          # gosu from the official postgres image is built with an old Go toolchain, so Trivy
+          # reports Go stdlib CVEs (crypto/tls, net/http). gosu only calls setgroups/setuid
+          # and exec; it never reaches those packages. The PostgreSQL server itself is scanned.
+          skip-files: ${{ steps.gosu.outputs.path }}
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: redis:8.12-alpine@sha256:5af80107c1eeecb484a2269b80a26d12bfa6521787da4663bd9f19f60a163483
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+          cache: false
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: pgsty/silo:RELEASE.2026-11-12T00-00-00Z@sha256:c20d112390b9a9ce8c11b8af95ad35bcaa62f4759663c09c936cd8d2b511f329
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+          cache: false
+          trivyignores: .github/trivy/silo.trivyignore
+
+  # A full run must produce every release result. PR and push runs use path routing.
+  ci-gate:
+    name: CI gate
+    if: always()
+    needs: [changes, preflight, quality, tests, release-samples, coverage-shards, coverage-merge, release-quality, faults, load, e2e, build-security]
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - name: Evaluate needed jobs
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+          results = {name: job["result"] for name, job in json.loads(os.environ["RESULTS"]).items()}
+          for name, result in sorted(results.items()):
+              print(f"{name}: {result}")
+          required = {"changes"}
+          if os.environ["GITHUB_EVENT_NAME"] in {"schedule", "workflow_dispatch", "release"}:
+              required.update({"preflight", "release-samples", "coverage-shards", "coverage-merge", "release-quality", "faults", "load", "e2e", "build-security"})
+          bad = {name for name, result in results.items() if result not in ("success", "skipped")}
+          bad.update(name for name in required if results.get(name) != "success")
+          if bad:
+              sys.exit("CI gate failed: " + ", ".join(sorted(bad)))
+          PY

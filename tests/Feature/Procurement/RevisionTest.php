@@ -1,0 +1,220 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Dto\Procurement\ProcurementSnapshotData;
+use App\Enums\Procurement\ProcurementEventType;
+use App\Models\Procurement\Platform\Registry;
+use App\Models\Procurement\ProcurementEvent;
+use App\Models\Procurement\ProcurementRevision;
+use App\Repositories\Procurement\ProcurementReadRepository;
+use App\Services\Platforms\Eis\Csv\EisSummaryParser;
+use App\Services\Procurement\Acquisition\Detail\IdentityResolver;
+use App\Services\Procurement\Acquisition\Detail\SnapshotFinalizer;
+use Database\Factories\Platforms\Eis\EisCrawlerFactory;
+use Illuminate\Support\Carbon;
+use Tests\Support\Procurement\SnapshotFactory;
+
+/**
+ * §11 «Изменилась цена/статус/даты» и «Состояние на дату X».
+ */
+test('изменение цены и статуса создаёт новую ревизию и события price_changed/status_changed', function () {
+    $registry = Registry::factory()->eis()->create();
+    $processor = app(SnapshotFinalizer::class);
+
+    $procurement = $processor->ingest(SnapshotFactory::make($registry, [
+        'sourceStage' => 'Подача заявок',
+        'initialPrice' => '150000.00',
+    ]));
+
+    $updated = $processor->ingest(SnapshotFactory::make($registry, [
+        'sourceStage' => 'Работа комиссии',
+        'initialPrice' => '175000.00',
+    ]));
+
+    expect($updated->id)->toBe($procurement->id)
+        ->and($updated->revision_count)->toBe(2);
+
+    $events = ProcurementEvent::query()
+        ->where('procurement_id', $procurement->id)
+        ->pluck('event_type');
+
+    expect($events)->toContain(ProcurementEventType::StatusChanged)
+        ->and($events)->toContain(ProcurementEventType::PriceChanged)
+        ->and($events)->toContain(ProcurementEventType::RevisionPublished);
+});
+
+/**
+ * Дефект Д-1: прежний CSV parser без модификатора `!` подставлял ТЕКУЩЕЕ время
+ * в компоненты, не указанные форматом источника (`Дата размещения` несёт только `d.m.Y`),
+ * поэтому `snapshot_hash` двух парсингов одной и той же строки различался бы из-за времени
+ * инжеста, а не факта источника. Снапшот собирается через РЕАЛЬНЫЙ `EisSummaryParser`
+ * и его `EisSourceClock`, чтобы проверять source date, а не дату из SnapshotFactory.
+ */
+test('повторный инжест идентичного CSV-снапшота ЕИС не создаёт вторую ревизию и событие (Д-1)', function () {
+    $crawler = EisCrawlerFactory::new()->create();
+    $registry = $crawler->registry;
+    $parser = app(EisSummaryParser::class);
+    $processor = app(SnapshotFinalizer::class);
+
+    $row = [
+        'Реестровый номер закупки' => '0173100000123000001',
+        'Способ определения поставщика (подрядчика, исполнителя), подрядной организации (размещения закупки)' => 'Электронный аукцион',
+        'Наименование закупки' => 'Поставка бумаги офисной',
+        'Этап закупки' => 'Подача заявок',
+        'Идентификационный код закупки (ИКЗ)' => '243773601234512345100100001',
+        'Начальная (максимальная) цена контракта' => '150000,00',
+        'Валюта' => 'RUB',
+        'Классификация по ОКПД2' => '',
+        'Дата размещения' => '10.01.2026',
+        'Дата обновления' => '10.01.2026 10:00:00',
+        'Начало подачи заявок' => '',
+        'Окончание подачи заявок' => '',
+        'Наименование Заказчика' => 'ГБУ «Тестовое учреждение»',
+    ];
+
+    $snapshot = static function () use ($parser, $row, $registry): ProcurementSnapshotData {
+        $summary = $parser->parse($row);
+
+        return new ProcurementSnapshotData($registry->id, $summary->identity, $summary->title, $summary->sourceStage,
+            Carbon::instance($summary->publishedAt), Carbon::instance($summary->updatedAt),
+            sourceUpdatedAtHasDayPrecision: $summary->updatedAtDayPrecision,
+            initialPrice: $summary->initialPrice, currency: $summary->currency);
+    };
+    $first = $processor->ingest($snapshot());
+
+    // Первый инжест сам вправе создать больше одного события (незнакомая пара статусов
+    // резолвится как newly-mapped) — базовая линия снимается ПОСЛЕ него, а не жёстко «1».
+    $revisionsAfterFirst = ProcurementRevision::query()->where('procurement_id', $first->id)->count();
+    $eventsAfterFirst = ProcurementEvent::query()->where('procurement_id', $first->id)->count();
+
+    // Change the parser clock without sleeping or changing database lease time.
+    $this->travel(2)->seconds();
+    $second = $processor->ingest($snapshot());
+    $this->travelBack();
+
+    expect($second->id)->toBe($first->id)
+        ->and($second->revision_count)->toBe($revisionsAfterFirst);
+
+    expect(ProcurementRevision::query()->where('procurement_id', $first->id)->count())->toBe($revisionsAfterFirst)
+        ->and(ProcurementEvent::query()->where('procurement_id', $first->id)->count())->toBe($eventsAfterFirst);
+});
+
+test('состояние на дату X читается по последней ревизии с detected_at <= X, таймлайн — по prc_events', function () {
+    $registry = Registry::factory()->eis()->create();
+    $processor = app(SnapshotFinalizer::class);
+
+    // Партиции `prc_revisions` заведены помесячно вокруг текущей даты (см. `config/partitioning.php`),
+    // поэтому даты сценария держим внутри текущего месяца, а не жёстко в прошлом.
+    $day1 = Carbon::now()->subHours(3);
+    $day2 = Carbon::now()->subHours(2);
+    $day3 = Carbon::now()->subHour();
+
+    Carbon::setTestNow($day1);
+    $procurement = $processor->ingest(SnapshotFactory::make($registry, ['initialPrice' => '100000.00']));
+
+    Carbon::setTestNow($day2);
+    $processor->ingest(SnapshotFactory::make($registry, ['initialPrice' => '200000.00']));
+
+    Carbon::setTestNow($day3);
+    $processor->ingest(SnapshotFactory::make($registry, ['initialPrice' => '300000.00']));
+
+    Carbon::setTestNow();
+
+    $readRepository = app(ProcurementReadRepository::class);
+
+    $stateBetweenDay1AndDay2 = $readRepository->findRevisionAsOf(procurementId: $procurement->id, asOf: $day2->copy()->subHour());
+    expect($stateBetweenDay1AndDay2->revision_number)->toBe(1)
+        ->and($stateBetweenDay1AndDay2->snapshot['initial_price'])->toBe('100000.00');
+
+    $stateOnDay2 = $readRepository->findRevisionAsOf(procurementId: $procurement->id, asOf: $day2);
+    expect($stateOnDay2->revision_number)->toBe(2);
+
+    $stateAfterDay3 = $readRepository->findRevisionAsOf(procurementId: $procurement->id, asOf: $day3->copy()->addDay());
+    expect($stateAfterDay3->revision_number)->toBe(3);
+
+    $timeline = ProcurementEvent::query()
+        ->where('procurement_id', $procurement->id)
+        ->orderBy('occurred_at')
+        ->pluck('event_type');
+
+    expect($timeline->first())->toBe(ProcurementEventType::Discovered)
+        ->and($timeline)->toContain(ProcurementEventType::PriceChanged);
+});
+
+test('снапшот старше текущей головы не создаёт ревизию-откат и не меняет голову', function (): void {
+    $registry = Registry::factory()->eis()->create();
+    $processor = app(SnapshotFinalizer::class);
+
+    $processor->ingest(SnapshotFactory::make($registry, [
+        'sourceStage' => 'Подача заявок',
+        'sourceUpdatedAt' => Carbon::parse('2026-01-10 10:00:00'),
+    ]));
+    $processor->ingest(SnapshotFactory::make($registry, [
+        'sourceStage' => 'Работа комиссии',
+        'sourceUpdatedAt' => Carbon::parse('2026-01-12 09:00:00'),
+    ]));
+
+    // Блок, снятый другим прогоном ДО второго изменения, инжестится последним.
+    $stale = $processor->ingest(SnapshotFactory::make($registry, [
+        'sourceStage' => 'Подача заявок',
+        'sourceUpdatedAt' => Carbon::parse('2026-01-10 10:00:00'),
+    ]));
+
+    expect($stale->revision_count)->toBe(2)
+        ->and($stale->source_stage)->toBe('Работа комиссии')
+        ->and(ProcurementRevision::query()->where('procurement_id', $stale->id)->count())->toBe(2)
+        ->and(ProcurementEvent::query()
+            ->where('procurement_id', $stale->id)
+            ->where('event_type', ProcurementEventType::RevisionPublished)
+            ->count())->toBe(1);
+});
+
+test('дата с точностью до суток того же дня не считается устаревшей', function (): void {
+    $registry = Registry::factory()->eis()->create();
+    $processor = app(SnapshotFinalizer::class);
+
+    $processor->ingest(SnapshotFactory::make($registry, [
+        'sourceStage' => 'Подача заявок',
+        'sourceUpdatedAt' => Carbon::parse('2026-01-12 15:30:00'),
+    ]));
+
+    $sameDay = new ProcurementSnapshotData(
+        registryId: $registry->id,
+        identity: app(IdentityResolver::class)->forRegistry($registry->id, '0173100000123000001')->source,
+        title: 'Поставка бумаги офисной',
+        sourceStage: 'Работа комиссии',
+        publishedAt: Carbon::parse('2026-01-10 10:00:00'),
+        sourceUpdatedAt: Carbon::parse('2026-01-12 00:00:00'),
+        sourceUpdatedAtHasDayPrecision: true,
+        initialPrice: '150000.00',
+    );
+
+    expect($processor->ingest($sameDay)->revision_count)->toBe(2);
+});
+
+test('снимок с точностью до суток старше головы через полночь МСК игнорируется (граница поясов)', function (): void {
+    $registry = Registry::factory()->eis()->create();
+    $processor = app(SnapshotFinalizer::class);
+
+    // Голова: 13.01 01:00 МСК = 12.01 22:00 UTC.
+    $processor->ingest(SnapshotFactory::make($registry, [
+        'sourceStage' => 'Работа комиссии',
+        'sourceUpdatedAt' => Carbon::parse('2026-01-12 22:00:00'),
+    ]));
+
+    // Снимок «12.01» (только дата): сутки 12.01 МСК начались 11.01 в 21:00 UTC и закончились
+    // раньше головы — снимок устаревший. Старое сравнение по дате UTC считало его «тем же днём».
+    $stale = new ProcurementSnapshotData(
+        registryId: $registry->id,
+        identity: app(IdentityResolver::class)->forRegistry($registry->id, '0173100000123000001')->source,
+        title: 'Поставка бумаги офисной',
+        sourceStage: 'Подача заявок',
+        publishedAt: Carbon::parse('2026-01-10 10:00:00'),
+        sourceUpdatedAt: Carbon::parse('2026-01-11 21:00:00'),
+        sourceUpdatedAtHasDayPrecision: true,
+        initialPrice: '150000.00',
+    );
+
+    expect($processor->ingest($stale)->revision_count)->toBe(1);
+});

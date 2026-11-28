@@ -1,0 +1,33 @@
+---
+audience: operator
+type: explanation
+status: living
+---
+
+# Production
+
+Текущий режим без CI: [ручной pull/build/deploy](manual-deployment.md). На shared host сначала
+аудит и только отсутствующие изменения, не повторный bootstrap соседнего окружения.
+
+Начните с [инструкции для нового Ubuntu-сервера](server-setup.md): в ней один линейный путь от
+пустой ОС до NGINX, pinned checkout, `.env.production` и файловых секретов. Затем продолжайте с
+[полного руководства по production](deployment.md). Остальные
+страницы — справочники для отдельных, нечастых операций, а не обязательный квест по ссылкам.
+
+| Если нужно | Страница |
+|---|---|
+| Пройти весь путь на новом сервере | [Ubuntu → готовый checkout](server-setup.md) |
+| Подготовить сервер или выпустить очередной релиз | [Полное руководство](deployment.md) |
+| Посмотреть точный контракт команды, входы и resume | [Справочник команд](commands.md) |
+| Подготовить host, checkout и production-профиль | [Host](ubuntu-host.md), [репозиторий](repositories.md), [профиль](production-profile.md) |
+| Провести первый запуск или разобрать модель выпусков | [Первый запуск](first-deploy.md), [модель релизов](releases.md) |
+| Настроить DNS или TLS глубже | [TLS](network-tls.md) |
+| Отправлять почту с собственного VPS | [Isolated SMTP и DNS](server-mail.md) |
+| Настроить backup, восстановление или rollback | [Manual backup](manual-backups.md), [Backups contract](backups.md), [Rollback and restore](rollback-restore.md) |
+| Повернуть ключи или секреты | [Deploy keys](credential-rotation.md), [Secrets](secret-rotation.md) |
+| Разобрать сбой | [Troubleshooting](troubleshooting.md) |
+
+Source-derived [матрица команд](commands.md#current-command-inventory)
+остаётся историческим inventory. Актуальный source-derived inventory создаётся временно
+из текущих исходников с явными render/check командами из [commands](commands.md),
+без отдельного tracked файла в корне checkout.

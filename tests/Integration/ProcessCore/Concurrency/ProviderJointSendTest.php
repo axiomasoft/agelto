@@ -1,0 +1,462 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Dto\Llm\Requests\AuthorizedProviderOperation;
+use App\Dto\Procurement\Network\Http\SafeUrl;
+use App\Enums\Llm\ProviderSendDenial;
+use App\Enums\Llm\ProviderTransportFailure;
+use App\Enums\Procurement\Process\Governance\ControlMode;
+use App\Repositories\Llm\Request\RequestRepository;
+use App\Services\Llm\Execution\ProviderTransportOutcome;
+use App\Services\Llm\Execution\ProviderWireRequest;
+use App\Services\Llm\Execution\ReceiptStore;
+use App\Services\Llm\Execution\StructuredCallExecutor;
+use App\Services\Procurement\Extraction\Provider\AnalysisCallCoordinator;
+use App\Services\Procurement\Process\Daemons\RecoveryReconciler;
+use Illuminate\Support\Facades\DB;
+use Proxyma\Application\Admission\TransactionCoordinator;
+use Proxyma\Application\Execution\WireSealer;
+use Proxyma\Contracts\PhysicalTransport;
+use Proxyma\Domain\Admission\AdmissionRejected;
+use Proxyma\Domain\Execution\AttemptResult;
+use Proxyma\Domain\Execution\AuthorizedWireRequest;
+use Proxyma\Domain\Execution\HttpResponseHead;
+use Proxyma\Domain\Execution\PreparedHeaders;
+use Proxyma\Domain\Execution\SealedWire;
+use Proxyma\Domain\Execution\TransportFailure as PackageTransportFailure;
+use Proxyma\Domain\Execution\WireRequest;
+use Proxyma\Infrastructure\Database\ConnectionScope;
+use Tests\Support\Postgres\ConcurrentTransactions;
+use Tests\Support\ProcessCore\ExecutionFixtures;
+use Tests\Support\ProcessCore\FinalizeFixtures;
+use Tests\Support\ProcessCore\Http\WireFixture;
+use Tests\Support\ProcessCore\PackageNetworkFacts;
+use Tests\Support\ProcessCore\ProviderSendFixtures;
+use Tests\Support\ProcessCore\ProxymaFixtures;
+use Tests\Support\ProcessCore\ProxymaProviderFixtures;
+
+pest()->group('provider-and-worker-recovery', 'analysis-execution', 'provider-send-fencing');
+
+beforeEach(function (): void {
+    $this->server = new WireFixture;
+});
+
+afterEach(function (): void {
+    $this->server->stop();
+    ProxymaFixtures::resetAuthority();
+});
+
+test('два PHP процесса получают одну capability и отправляют ровно один физический запрос', function (): void {
+    $f = new ProviderSendFixtures($this->server);
+    $code = $f->worker('$claim=$gate->claimSend($operation,$wire); if ($claim->transport!==null) { $out=$claim->transport->sendOnce($wire); $gate->recordTransportOutcome($operation->physicalCallId,$out); } return ["granted"=>$claim->transport!==null,"pid"=>\\Illuminate\\Support\\Facades\\DB::selectOne("SELECT pg_backend_pid() AS pid")->pid];');
+    $results = ConcurrentTransactions::concurrently(['first' => $code, 'second' => $code]);
+    expect($results['first']['pid'])->not->toBe($results['second']['pid'])
+        ->and((int) $results['first']['granted'] + (int) $results['second']['granted'])->toBe(1)
+        ->and($this->server->receipts())->toHaveCount(1)
+        ->and(PackageNetworkFacts::attempts()->count())->toBe(1)
+        ->and(DB::table('llm_provider_calls')->whereNotNull('send_claimed_at')->count())->toBe(1);
+});
+
+test('SIGKILL после joint claim до wire остаётся honest unknown и удерживает budget', function (): void {
+    $f = new ProviderSendFixtures($this->server);
+    expect(fn () => ConcurrentTransactions::execute($f->worker('$claim=$gate->claimSend($operation,$wire); if($claim->transport===null){throw new \\RuntimeException("claim failed");} posix_kill(getmypid(),SIGKILL); return [];')))->toThrow(RuntimeException::class);
+    expect(DB::table('llm_provider_calls')->whereNotNull('send_claimed_at')->count())->toBe(1)
+        ->and(PackageNetworkFacts::attempts()->count())->toBe(1)
+        ->and($this->server->receipts())->toBe([]);
+    FinalizeFixtures::expire($f->work, 600);
+    expect(app(RecoveryReconciler::class)->recoverExpiredRunning())->toBe(1)
+        ->and(ExecutionFixtures::work($f->work)->reason_code)->toBe('provider_result_unknown')
+        ->and(DB::table('llm_budget_reservations')->sole()->state)->toBe('reserved')
+        ->and(app(RequestRepository::class)->get($f->operation->physicalCallId)->requestState)->toBe('unknown')
+        ->and($this->server->receipts())->toBe([]);
+});
+
+test('Proxyma отправляет подготовленный Gemini wire, сохраняет receipt и сводит один финансовый резерв', function (): void {
+    $f = new ProviderSendFixtures($this->server);
+    new ProxymaProviderFixtures($f);
+    $outcome = app(StructuredCallExecutor::class)->execute($f->operation, $f->wire, $f->gate());
+    $call = app(RequestRepository::class)->get($f->operation->physicalCallId);
+    expect($outcome)->toBeInstanceOf(ProviderTransportOutcome::class)
+        ->and($outcome->status)->toBe(200)
+        ->and($outcome->stats['http_code'])->toBe(200)
+        ->and($outcome->stats['size_download'])->toBe($outcome->wireBytes)
+        ->and($outcome->stats['total_time'])->toBeGreaterThanOrEqual(0)
+        ->and($this->server->receipts())->toHaveCount(1)
+        ->and($this->server->receipts()[0]['headers']['x-goog-api-key'])->toBe('fixture-only-key')
+        ->and($this->server->receipts()[0]['body_sha256'])->toBe($f->wire->bodyHash)
+        ->and($call->receiptHash)->not->toBeNull()
+        ->and($call->requestState)->toBe('completed')
+        ->and(DB::table('llm_budget_reservations')->sole()->state)->toBe('settled')
+        ->and(DB::table('pxm_attempts')->count())->toBe(1)
+        ->and(DB::table('pxm_permits')->sole()->state)->toBe('completed')
+        ->and(DB::table('pxm_budgets')->sum('inflight'))->toBe(0)
+        ->and(DB::table('prc_request_attempts')->count())->toBe(0)
+        ->and(DB::table('prc_network_cutover_journals')->sole()->first_authorized_at)->not->toBeNull()
+        ->and($f->gate()->claimSend($f->operation, $f->wire)->denial)->toBe(ProviderSendDenial::AlreadyClaimed);
+});
+
+test('Proxyma два реальных worker получают один joint claim без повторного списания', function (): void {
+    $f = new ProviderSendFixtures($this->server);
+    $p = new ProxymaProviderFixtures($f);
+    $code = $p->worker('$claim=$gate->claimSend($operation,$wire); if($claim->transport!==null){$out=$claim->transport->sendOnce($wire);$gate->recordTransportOutcome($operation->physicalCallId,$out);} return ["granted"=>$claim->transport!==null,"pid"=>\\Illuminate\\Support\\Facades\\DB::selectOne("SELECT pg_backend_pid() AS pid")->pid];');
+    $result = ConcurrentTransactions::concurrently(['a' => $code, 'b' => $code]);
+    expect($result['a']['pid'])->not->toBe($result['b']['pid'])
+        ->and((int) $result['a']['granted'] + (int) $result['b']['granted'])->toBe(1)
+        ->and($this->server->receipts())->toHaveCount(1)
+        ->and(DB::table('pxm_attempts')->count())->toBe(1)
+        ->and(DB::table('llm_provider_calls')->whereNotNull('send_claimed_at')->count())->toBe(1)
+        ->and(DB::table('llm_budget_reservations')->count())->toBe(1);
+});
+
+test('Proxyma CONNECT 407 сохраняет credential hold и durable network receipt без повтора POST', function (): void {
+    $f = new ProviderSendFixtures($this->server, tls: true);
+    new ProxymaProviderFixtures($f, proxyPort: $this->server->ports['auth']);
+    $gate = $f->gate();
+    $outcome = app(StructuredCallExecutor::class)->execute($f->operation, $f->wire, $gate);
+    expect($outcome)->toBeInstanceOf(ProviderTransportOutcome::class)
+        ->and($outcome->networkResult?->failure)->toBe(PackageTransportFailure::ProxyAuth)
+        ->and($outcome->status)->toBeNull()
+        ->and($this->server->receipts())->toHaveCount(1)
+        ->and($this->server->receipts()[0]['kind'])->toBe('connect')
+        ->and($this->server->receipts()[0]['request'])->toStartWith('CONNECT ')
+        ->and(DB::table('pxm_route_health')->sole()->reason_code)->toBe('credential_hold:1')
+        ->and(DB::table('pxm_observations')->where('classification', 'transport_failure')->sole()->receipt_id)->not->toBeNull()
+        ->and(json_decode(DB::table('pxm_attempts')->sole()->result_summary, true)['failure'])->toBe('proxy_auth')
+        ->and(app(RequestRepository::class)->get($f->operation->physicalCallId)->requestState)->toBe('unknown')
+        ->and(DB::table('llm_budget_reservations')->sole()->state)->toBe('reserved');
+    $gate->recordTransportOutcome($f->operation->physicalCallId, $outcome);
+    expect(DB::table('pxm_budgets')->sum('inflight'))->toBe(0)
+        ->and($gate->claimSend($f->operation, $f->wire)->transport)->toBeNull()
+        ->and($this->server->receipts())->toHaveCount(1);
+});
+
+test('Proxyma partial head 407 проходит в Completion без финансовой HTTP receipt', function (): void {
+    $f = new ProviderSendFixtures($this->server, tls: true);
+    new ProxymaProviderFixtures($f, proxyPort: $this->server->ports['auth']);
+    $original = AttemptResult::failed(PackageTransportFailure::ProxyAuth, curlErrorCode: 56,
+        partialHead: new HttpResponseHead(407, ['retry-after' => ['17']]));
+    app()->bind(PhysicalTransport::class, fn () => new class($original) implements PhysicalTransport
+    {
+        public function __construct(private AttemptResult $result) {}
+
+        public function sendOnce(AuthorizedWireRequest $request): AttemptResult
+        {
+            $request->consume();
+
+            return $this->result;
+        }
+    });
+    $outcome = app(StructuredCallExecutor::class)->execute($f->operation, $f->wire, $f->gate());
+    $summary = json_decode(DB::table('pxm_attempts')->sole()->result_summary, true);
+    expect($outcome->networkResult)->toBe($original)
+        ->and($summary['status'])->toBe(407)
+        ->and($summary['failure'])->toBe('proxy_auth')
+        ->and($summary['headers_digest'])->toBe(hash('sha256', json_encode($original->head->headers, JSON_THROW_ON_ERROR)))
+        ->and(DB::table('pxm_route_health')->sole()->reason_code)->toBe('credential_hold:1')
+        ->and(DB::table('pxm_observations')->where('classification', 'transport_failure')->sole()->receipt_id)->not->toBeNull()
+        ->and(app(RequestRepository::class)->get($f->operation->physicalCallId)->receiptHash)->toBeNull()
+        ->and($this->server->receipts())->toBe([]);
+});
+
+test('Proxyma медленный transfer прерывается heartbeat после отзыва generation другим worker', function (): void {
+    $f = new ProviderSendFixtures($this->server, operationFactory: function ($plan, string $origin): array {
+        return [$plan, new ProviderWireRequest($plan, 'POST', $origin.'/slow45', $origin, '{}')];
+    });
+    $p = new ProxymaProviderFixtures($f);
+    $send = $p->worker('$started=hrtime(true);$out=app(\\App\\Services\\Llm\\Execution\\StructuredCallExecutor::class)->execute($operation,$wire,$gate);return ["failure"=>$out->failure?->value,"elapsed"=>(hrtime(true)-$started)/1000000000];');
+    // Реальные keeper/clock, укорочен только heartbeat interval для bounded fixture.
+    $context = 'new \\App\Dto\Procurement\Process\Execution\ExecutionContext($lease,app(\\App\\Services\\Procurement\\Process\\Contracts\\LeaseKeeper::class),app(\\App\\Services\\Procurement\\Process\\Contracts\\ProcessClock::class),\\App\Dto\Procurement\Process\Primitives\Duration::seconds(60),\\App\Dto\Procurement\Process\Primitives\Duration::seconds(390),\\App\Dto\Procurement\Process\Primitives\Duration::seconds(1),\\App\Dto\Procurement\Process\Primitives\Duration::seconds(5),\\App\Dto\Procurement\Process\Primitives\Duration::seconds(5))';
+    $send = str_replace('$profile,$server);', '$profile,$server,'.$context.');', $send);
+    $receiptPath = var_export($this->server->root.'/requests.jsonl', true);
+    $revoke = $p->worker('$until=hrtime(true)+10000000000;while(!is_file('.$receiptPath.')){if(hrtime(true)>$until){throw new \\RuntimeException("transfer did not start");}usleep(10000);}return ["revoked"=>\\Tests\\Support\\ProcessCore\\FinalizeFixtures::revoke($lease->workId,true)];');
+    $results = ConcurrentTransactions::concurrently(['send' => $send, 'revoke' => $revoke]);
+    $summary = json_decode(DB::table('pxm_attempts')->sole()->result_summary, true);
+    expect($results['revoke']['revoked'])->toBeTrue()
+        ->and($results['send']['failure'])->toBe('interrupted')
+        ->and($results['send']['elapsed'])->toBeLessThan(3.5)
+        ->and($summary['failure'])->toBe('cancelled')
+        ->and(DB::table('pxm_observations')->where('classification', 'transport_failure')->sole()->receipt_id)->not->toBeNull()
+        ->and(DB::table('pxm_budgets')->sum('inflight'))->toBe(0)
+        ->and(DB::table('llm_provider_calls')->whereNotNull('send_claimed_at')->count())->toBe(1)
+        ->and(app(RequestRepository::class)->get($f->operation->physicalCallId)->requestState)->toBe('unknown')
+        ->and(DB::table('llm_budget_reservations')->sole()->state)->toBe('reserved')
+        ->and($this->server->receipts())->toHaveCount(1)
+        ->and($f->gate()->claimSend($f->operation, $f->wire)->transport)->toBeNull()
+        ->and($this->server->receipts())->toHaveCount(1);
+});
+
+test('Proxyma network denial после financial mutation откатывает обе authority и irreversible marker', function (): void {
+    $f = new ProviderSendFixtures($this->server);
+    new ProxymaProviderFixtures($f);
+    $mutated = false;
+    DB::listen(function ($query) use (&$mutated): void {
+        if (! $mutated && str_contains($query->sql, 'SET send_claimed_at=clock_timestamp()')) {
+            $mutated = true;
+            // Fault injection happens after the real financial CAS, before package locks.
+            DB::table('pxm_budgets')->where('scope_key', 'like', 'route-origin:%')->increment('revision');
+        }
+    });
+    $result = $f->gate()->claimSend($f->operation, $f->wire);
+    expect($mutated)->toBeTrue()->and($result->transport)->toBeNull()
+        ->and(DB::table('llm_provider_calls')->whereNotNull('send_claimed_at')->count())->toBe(0)
+        ->and(DB::table('pxm_attempts')->count())->toBe(0)
+        ->and(DB::table('pxm_permits')->whereNotNull('authorized_at')->count())->toBe(0)
+        ->and(DB::table('prc_network_cutover_journals')->sole()->first_authorized_at)->toBeNull()
+        ->and(DB::table('pxm_budgets')->max('revision'))->toBe(1)
+        ->and($this->server->receipts())->toBe([]);
+});
+
+test('Proxyma финансовый отказ после network reservation не оставляет сетевой claim или inflight', function (): void {
+    $f = new ProviderSendFixtures($this->server);
+    new ProxymaProviderFixtures($f);
+    $held = false;
+    DB::listen(function ($query) use (&$held): void {
+        if (! $held && str_starts_with($query->sql, 'insert into "pxm_permits"')) {
+            $held = true;
+            DB::table('llm_budget_accounts')->where('account_id', 'fixture-account')->update(['hard_exposure_cap' => '0']);
+        }
+    });
+    expect($f->gate()->claimSend($f->operation, $f->wire)->denial)->toBe(ProviderSendDenial::PolicyReview)
+        ->and($held)->toBeTrue()
+        ->and(DB::table('pxm_attempts')->count())->toBe(0)
+        ->and(DB::table('pxm_budgets')->sum('inflight'))->toBe(0)
+        ->and(DB::table('llm_provider_calls')->whereNotNull('send_claimed_at')->count())->toBe(0)
+        ->and($this->server->receipts())->toBe([]);
+});
+
+test('Proxyma seal запрещает подмену headers после finance claim и повтор capability', function (): void {
+    $f = new ProviderSendFixtures($this->server);
+    new ProxymaProviderFixtures($f);
+    $claim = $f->gate()->claimSend($f->operation, $f->wire);
+    expect($claim->transport)->not->toBeNull();
+    $request = (new ReflectionProperty($claim->transport, 'request'))->getValue($claim->transport);
+    $sealed = $request->wire;
+    $changed = new WireRequest($sealed->operationId, $sealed->physicalAttemptId, $sealed->targetId,
+        $sealed->policyRevision, $sealed->method, $sealed->url, $sealed->timeouts, $sealed->deadlineAt,
+        new PreparedHeaders(['Content-Type' => 'application/json', 'x-goog-api-key' => 'another-key']),
+        $sealed->body, $sealed->idempotency, $sealed->purpose, $sealed->sealDigest, $sealed->trafficClass, $sealed->responseProfile);
+    $prepared = $request->prepared;
+    $tampered = new SealedWire($changed, $prepared->route, $prepared->destination, $prepared->tls);
+    expect(fn () => app(WireSealer::class)->verify($tampered))
+        ->toThrow(AdmissionRejected::class)
+        ->and($changed->fingerprint()->hex)->not->toBe($sealed->fingerprint()->hex)
+        ->and($this->server->receipts())->toBe([])
+        ->and(fn () => serialize($claim->transport))->toThrow(LogicException::class)
+        ->and(fn () => clone $claim->transport)->toThrow(LogicException::class);
+    // Мягкая пауза запрещает новые claims, но не отзывает уже совместно авторизованную capability.
+    ExecutionFixtures::setMode('documents', ControlMode::Paused);
+    expect($claim->transport->sendOnce($f->wire)->status)->toBe(200)
+        ->and(fn () => $claim->transport->sendOnce($f->wire))->toThrow(LogicException::class)
+        ->and($this->server->receipts())->toHaveCount(1);
+});
+
+test('Proxyma мягкая пауза не скрывает потерю owner после совместного claim', function (): void {
+    $f = new ProviderSendFixtures($this->server);
+    new ProxymaProviderFixtures($f);
+    $claim = $f->gate()->claimSend($f->operation, $f->wire);
+    expect($claim->transport)->not->toBeNull();
+    ExecutionFixtures::setMode('documents', ControlMode::Paused);
+    FinalizeFixtures::revoke($f->work, true);
+    $outcome = $claim->transport->sendOnce($f->wire);
+    $f->gate()->recordTransportOutcome($f->operation->physicalCallId, $outcome);
+
+    expect($outcome->failure)->toBe(ProviderTransportFailure::Interrupted)
+        ->and($this->server->receipts())->toBe([])
+        ->and(DB::table('llm_provider_calls')->whereNotNull('send_claimed_at')->count())->toBe(1)
+        ->and(DB::table('llm_budget_reservations')->sole()->state)->toBe('reserved')
+        ->and(DB::table('pxm_permits')->sole()->state)->toBe('unknown_after_authorization')
+        ->and(DB::table('pxm_budgets')->sum('inflight'))->toBe(0);
+});
+
+test('Proxyma ожидание slot повторно проверяет каждый consumer fence без HTTP или финансового claim', function (string $change): void {
+    $f = new ProviderSendFixtures($this->server);
+    new ProxymaProviderFixtures($f);
+    DB::table('pxm_budgets')->update(['tat' => DB::raw("clock_timestamp()+interval '2 seconds'")]);
+    $changer = $f->worker('$until=hrtime(true)+10000000000; while (!\\Illuminate\\Support\\Facades\\DB::table("pxm_permits")->exists()) { if(hrtime(true)>$until){throw new \\RuntimeException("reservation barrier timed out");} usleep(10000); } '.$change.' return ["changed"=>true];');
+    $claim = $f->worker('$claim=$gate->claimSend($operation,$wire); if($claim->transport!==null){ $claim->transport->sendOnce($wire); } return ["denial"=>$claim->denial?->value];');
+    $results = ConcurrentTransactions::concurrently(['send' => $claim, 'change' => $changer]);
+    expect($results['change']['changed'])->toBeTrue()
+        ->and($results['send']['denial'])->not->toBeNull()
+        ->and($this->server->receipts())->toBe([])
+        ->and(DB::table('llm_provider_calls')->whereNotNull('send_claimed_at')->count())->toBe(0)
+        ->and(DB::table('pxm_attempts')->count())->toBe(0)
+        ->and(DB::table('pxm_permits')->whereNotNull('authorized_at')->count())->toBe(0)
+        ->and(app(RequestRepository::class)->get($f->operation->physicalCallId)->outcome)->toBe('not_sent')
+        ->and(DB::table('llm_budget_reservations')->sole()->settled_amount)->toBe('0.00000000');
+})->with([
+    'process pause' => '\\Tests\\Support\\ProcessCore\\ExecutionFixtures::setMode("documents",\\App\Enums\Procurement\Process\Governance\ControlMode::Paused);',
+    'provider pause' => '\\Tests\\Support\\ProcessCore\\ExecutionFixtures::setMode("provider:fixture-provider",\\App\Enums\Procurement\Process\Governance\ControlMode::Paused);',
+    'handler hold' => '\\Tests\\Support\\ProcessCore\\ExecutionFixtures::holdHandler(\\App\Enums\Procurement\Process\Core\StageCode::Screening);',
+    'account hold' => 'app(\\App\\Repositories\\Llm\\Request\\FinancialReservationRepository::class)->configureAccount("fixture-account","USD",1,"0","fixture","hold while waiting");',
+    'target retirement' => '$row=\\Illuminate\\Support\\Facades\\DB::table("pxm_targets")->where("id",$target->value)->sole(); app(\\Proxyma\\Contracts\\CatalogCommands::class)->retireTarget(new \\Proxyma\\Domain\\Catalog\\RetireCatalogEntityCommand(new \\Proxyma\\Domain\\Execution\\Uuid($target->value),\\Proxyma\\Domain\\Policy\\TenantKey::system(),new \\Proxyma\\Domain\\Catalog\\CatalogMutationActor(new \\Proxyma\\Domain\\Catalog\\ActorRef("worker","fixture-provider"),"retire while waiting",(int)$row->revision,"wait-retire-".$target->value)));',
+    'owner cancellation' => '\\Tests\\Support\\ProcessCore\\FinalizeFixtures::revoke($lease->workId,true);',
+    'analysis head drift' => '\\Illuminate\\Support\\Facades\\DB::statement("UPDATE prc_document_versions SET analysis_generation=analysis_generation+1,current_analysis_run_id=NULL WHERE current_analysis_run_id=?",[$run->value]);',
+]);
+
+test('Proxyma отложенная совместная авторизация сохраняет запас на transfer и cleanup', function (): void {
+    $f = new ProviderSendFixtures($this->server);
+    new ProxymaProviderFixtures($f);
+    DB::table('pxm_budgets')->update(['tat' => DB::raw("clock_timestamp()+interval '0.2 seconds'"),
+        'send_tat' => DB::raw("clock_timestamp()+interval '1.5 seconds'")]);
+    $started = hrtime(true);
+    $claim = $f->gate()->claimSend($f->operation, $f->wire);
+    $permit = DB::table('pxm_permits')->sole();
+    $coverage = (float) DB::selectOne('SELECT extract(epoch FROM (?::timestamptz-?::timestamptz)) AS seconds', [$permit->expires_at, $permit->authorized_at])->seconds;
+    $waited = (hrtime(true) - $started) / 1_000_000_000;
+    expect($claim->transport)->not->toBeNull()
+        ->and($coverage)->toBeGreaterThanOrEqual($f->profile->totalSeconds + 15)
+        ->and($waited)->toBeGreaterThan(1.0)
+        ->and($claim->transport->sendOnce($f->wire)->status)->toBe(200)
+        ->and($this->server->receipts())->toHaveCount(1);
+});
+
+test('Proxyma отклоняет отсутствующий gate, изменённый до claim wire и запрещённый destination без consumer mutation', function (): void {
+    $f = new ProviderSendFixtures($this->server);
+    expect(app(StructuredCallExecutor::class)->execute($f->operation, $f->wire, null)->denial)->toBe(ProviderSendDenial::Unsupported);
+    $changed = new ProviderWireRequest($f->plan, $f->wire->method, $f->wire->endpoint, $f->wire->allowedOrigin, '{"tampered":true}');
+    expect($f->gate()->claimSend($f->operation, $changed)->denial)->toBe(ProviderSendDenial::WireMismatch)
+        ->and($this->server->receipts())->toBe([])
+        ->and(DB::table('pxm_demands')->count())->toBe(0)
+        ->and(DB::table('llm_provider_calls')->whereNotNull('send_claimed_at')->count())->toBe(0);
+    FinalizeFixtures::expire($f->work, 600);
+    expect(app(RecoveryReconciler::class)->recoverExpiredRunning())->toBe(1);
+    $lease = FinalizeFixtures::running($f->work);
+    $period = (string) DB::table('llm_budget_periods')->value('id');
+    $second = app(AnalysisCallCoordinator::class)->authorize($lease, $f->run, $f->plan, $period, $f->wire);
+    $denied = ProviderSendFixtures::gateFor($lease, $f->run, $f->target, $f->route, $f->profile, new SafeUrl('https://denied.example.test/'));
+    expect($denied->claimSend($second, $f->wire)->denial)->toBe(ProviderSendDenial::Configuration)
+        ->and(app(RequestRepository::class)->get($second->physicalCallId)->outcome)->toBe('not_sent')
+        ->and(DB::table('llm_budget_reservations')->where('id', $second->reservationId)->value('state'))->toBe('settled');
+});
+
+test('Proxyma provider 302 и 503 отправляются один раз без follow/retry и освобождают network lease', function (int $status): void {
+    $f = new ProviderSendFixtures($this->server);
+    $path = '/v1beta/models/fixture-model:generateContent';
+    $this->server->respond($path, '{"error":"fixture"}', $status, ['Location' => '/ok'], 'POST');
+    $definitions = json_decode(file_get_contents($this->server->root.'/responses.json'), true, flags: JSON_THROW_ON_ERROR);
+    array_shift($definitions['POST '.$path]);
+    file_put_contents($this->server->root.'/responses.json', json_encode($definitions, JSON_THROW_ON_ERROR));
+    $result = app(StructuredCallExecutor::class)->execute($f->operation, $f->wire, $f->gate());
+    expect($result->status)->toBe($status)
+        ->and($this->server->receipts())->toHaveCount(1)
+        ->and($this->server->receipts()[0]['path'])->toBe($path)
+        ->and(DB::table('pxm_attempts')->count())->toBe(1)
+        ->and(DB::table('pxm_permits')->sole()->state)->toBe('completed')
+        ->and(DB::table('pxm_permits')->sole()->lease_released_at)->not->toBeNull()
+        ->and(DB::table('pxm_budgets')->sum('inflight'))->toBe(0)
+        ->and(app(RequestRepository::class)->get($f->operation->physicalCallId)->requestState)->toBe('unknown')
+        ->and(DB::table('llm_budget_reservations')->sole()->state)->toBe('reserved');
+})->with([302, 503]);
+
+test('Proxyma недоверенный локальный TLS даёт typed unknown без HTTP receipt и освобождает lease', function (): void {
+    $f = new ProviderSendFixtures($this->server, tls: true);
+    $result = app(StructuredCallExecutor::class)->execute($f->operation, $f->wire, $f->gate());
+    expect($result->failure)->toBe(ProviderTransportFailure::Tls)
+        ->and($this->server->receipts())->toBe([])
+        ->and(DB::table('llm_provider_calls')->whereNotNull('send_claimed_at')->count())->toBe(1)
+        ->and(app(RequestRepository::class)->get($f->operation->physicalCallId)->requestState)->toBe('unknown')
+        ->and(DB::table('llm_budget_reservations')->sole()->state)->toBe('reserved')
+        ->and(DB::table('pxm_permits')->sole()->state)->toBe('unknown_after_authorization')
+        ->and(DB::table('pxm_permits')->sole()->lease_released_at)->not->toBeNull()
+        ->and(DB::table('pxm_budgets')->sum('inflight'))->toBe(0)
+        ->and(DB::table('pxm_route_target_health')->sole()->consecutive_failures)->toBe(0);
+});
+
+test('Proxyma latest-start истёкший после commit не отправляет bytes и не возвращает финансовый резерв', function (): void {
+    $f = new ProviderSendFixtures($this->server);
+    new ProxymaProviderFixtures($f);
+    $now = hrtime(true);
+    app()->instance(TransactionCoordinator::class,
+        new TransactionCoordinator(app(ConnectionScope::class),
+            function () use (&$now): int {
+                return $now;
+            }));
+    $claim = $f->gate()->claimSend($f->operation, $f->wire);
+    expect($claim->transport)->not->toBeNull();
+    $now = PHP_INT_MAX;
+    expect(fn () => $claim->transport->sendOnce($f->wire))->toThrow(LogicException::class, 'expired')
+        ->and(DB::table('pxm_permits')->sole()->state)->toBe('unknown_after_authorization')
+        ->and(DB::table('pxm_attempts')->sole()->dispatch_outcome)->toBe('not_dispatched')
+        ->and(DB::table('llm_provider_calls')->whereNotNull('send_claimed_at')->count())->toBe(1)
+        ->and(DB::table('llm_budget_reservations')->sole()->state)->toBe('reserved')
+        ->and($this->server->receipts())->toBe([]);
+});
+
+test('Proxyma чужие provider или owner не получают сетевой authorization', function (string $change): void {
+    $f = new ProviderSendFixtures($this->server);
+    $operation = $f->operation;
+    $beforeActivate = null;
+    if ($change === 'provider') {
+        $beforeActivate = fn () => DB::table('prc_source_targets')->where('id', $f->target->value)->update(['provider_key' => 'foreign']);
+    } else {
+        $operation = new AuthorizedProviderOperation($operation->logicalRequestId, $operation->physicalCallId,
+            $operation->requestEpoch, $operation->sendAuthorizationToken, $operation->ownerAttemptId, $operation->ownerWorkGeneration + 1,
+            $operation->reservationId);
+    }
+    new ProxymaProviderFixtures($f, beforeActivate: $beforeActivate);
+    expect(DB::table('prc_network_authorities')->sole()->authority)->toBe('proxyma');
+    if ($change === 'provider') {
+        expect(DB::table('prc_source_targets')->where('id', $f->target->value)->sole()->provider_key)->toBe('foreign');
+    }
+    expect($f->gate()->claimSend($operation, $f->wire)->transport)->toBeNull()
+        ->and(DB::table('pxm_attempts')->count())->toBe(0)
+        ->and(DB::table('llm_provider_calls')->whereNotNull('send_claimed_at')->count())->toBe(0)
+        ->and($this->server->receipts())->toBe([]);
+})->with(['provider', 'owner']);
+
+test('Proxyma network wait откатывает промежуточный finance claim и сохраняет один final send', function (): void {
+    $f = new ProviderSendFixtures($this->server);
+    new ProxymaProviderFixtures($f);
+    $financialClaims = 0;
+    $injectedWait = false;
+    DB::listen(function ($query) use (&$financialClaims, &$injectedWait): void {
+        if (str_contains($query->sql, 'SET send_claimed_at=clock_timestamp()')) {
+            $financialClaims++;
+            if (! $injectedWait) {
+                $injectedWait = true;
+                DB::table('pxm_budgets')->update(['send_tat' => DB::raw("clock_timestamp()+interval '1 second'")]);
+            }
+        }
+    });
+    $claim = $f->gate()->claimSend($f->operation, $f->wire);
+    expect($injectedWait)->toBeTrue()
+        ->and($financialClaims)->toBeGreaterThan(1)
+        ->and($claim->transport)->not->toBeNull()
+        ->and(DB::table('llm_provider_calls')->whereNotNull('send_claimed_at')->count())->toBe(1)
+        ->and(DB::table('pxm_attempts')->count())->toBe(1)
+        ->and($claim->transport->sendOnce($f->wire)->status)->toBe(200)
+        ->and($this->server->receipts())->toHaveCount(1);
+});
+
+test('Proxyma потеря generation после HTTP не теряет durable receipt и не разрешает повтор POST', function (): void {
+    $f = new ProviderSendFixtures($this->server);
+    new ProxymaProviderFixtures($f);
+    $gate = $f->gate();
+    $claim = $gate->claimSend($f->operation, $f->wire);
+    $outcome = $claim->transport->sendOnce($f->wire);
+    FinalizeFixtures::revoke($f->work, true);
+    $call = app(RequestRepository::class)->get($f->operation->physicalCallId);
+    $receipt = app(ReceiptStore::class)->put($call, $outcome->status, $outcome->body());
+    $gate->recordTransportOutcome($f->operation->physicalCallId, $outcome);
+    $gate->recordTransportOutcome($f->operation->physicalCallId, $outcome);
+    expect($receipt->hash)->not->toBe('')
+        ->and(DB::table('pxm_permits')->sole()->state)->toBe('completed')
+        ->and(DB::table('pxm_attempts')->whereNotNull('receipt_id')->count())->toBe(1)
+        ->and(fn () => $claim->transport->sendOnce($f->wire))->toThrow(LogicException::class)
+        ->and($this->server->receipts())->toHaveCount(1);
+});
+
+test('Proxyma SIGKILL после joint commit сохраняет финансовый unknown и запрещает новый POST', function (): void {
+    $f = new ProviderSendFixtures($this->server);
+    $p = new ProxymaProviderFixtures($f);
+    expect(fn () => ConcurrentTransactions::execute($p->worker('$c=$gate->claimSend($operation,$wire); if($c->transport===null){throw new \\RuntimeException("no claim");} posix_kill(getmypid(),SIGKILL); return [];')))->toThrow(RuntimeException::class);
+    expect(DB::table('pxm_attempts')->count())->toBe(1)
+        ->and(DB::table('llm_provider_calls')->whereNotNull('send_claimed_at')->count())->toBe(1)
+        ->and(DB::table('prc_network_cutover_journals')->sole()->first_authorized_at)->not->toBeNull();
+    FinalizeFixtures::expire($f->work, 600);
+    expect(app(RecoveryReconciler::class)->recoverExpiredRunning())->toBe(1)
+        ->and(app(RequestRepository::class)->get($f->operation->physicalCallId)->requestState)->toBe('unknown')
+        ->and(DB::table('llm_budget_reservations')->sole()->state)->toBe('reserved')
+        ->and($this->server->receipts())->toBe([]);
+});

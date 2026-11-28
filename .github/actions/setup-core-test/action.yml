@@ -1,0 +1,79 @@
+name: Start isolated Process Core test rig
+description: Reuse image layers and dependency downloads, then start the guarded Compose project.
+inputs:
+  write-cache:
+    description: Save reusable layers and public dependency downloads on a trusted run.
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/setup-vendors
+    - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+    - name: Load isolated images
+      uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
+      with:
+        # Bake resolves Compose build contexts from its working directory, not from the
+        # Compose file, so it runs in docker/ like `docker compose --project-directory docker`.
+        source: docker
+        files: compose.core-test.yml
+        targets: app,core-postgres
+        load: true
+        set: |
+          app.cache-from=type=gha,scope=core-test-php
+          core-postgres.cache-from=type=gha,scope=core-test-postgres
+          ${{ inputs.write-cache == 'true' && 'app.cache-to=type=gha,scope=core-test-php,mode=max' || '' }}
+          ${{ inputs.write-cache == 'true' && 'core-postgres.cache-to=type=gha,scope=core-test-postgres,mode=max' || '' }}
+    # Node 25+ no longer bundles Corepack; pnpm/action-setup installs the version pinned in
+    # package.json#packageManager.
+    - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: '26'
+        # setup-node v5+ caches automatically when package.json declares packageManager;
+        # caches are written only by the explicit trusted-push steps.
+        package-manager-cache: false
+    - name: Resolve pnpm download cache
+      id: pnpm
+      shell: bash
+      run: |
+        printf 'path=%s\n' "$(pnpm store path)" >> "$GITHUB_OUTPUT"
+    - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      id: downloads
+      with:
+        path: |
+          storage/app/testing/process-core/composer-cache
+          ${{ steps.pnpm.outputs.path }}
+        key: core-downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('composer.lock', 'pnpm-lock.yaml', 'pnpm-workspace.yaml') }}
+    - name: Build the browser-facing assets and start the rig
+      shell: bash
+      run: |
+        pnpm install --frozen-lockfile --ignore-scripts
+        pnpm build
+        make core-test-up CORE_TEST_PREBUILT=1
+    # The isolated app mounts public/ read-only. Publish the locked PHP package assets on the
+    # clean runner after Composer has populated vendor/ and before the test suites start.
+    - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+      with:
+        php-version: '8.6'
+        extensions: intl, bcmath, pdo_pgsql
+        coverage: none
+    - name: Publish locked Filament and Livewire assets
+      shell: bash
+      env:
+        APP_ENV: testing
+        APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+        DB_CONNECTION: sqlite
+        DB_DATABASE: ':memory:'
+        CACHE_STORE: array
+        SESSION_DRIVER: array
+        QUEUE_CONNECTION: sync
+      run: |
+        php artisan filament:assets --no-interaction
+        php artisan livewire:publish --assets --no-interaction
+    - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      if: inputs.write-cache == 'true' && steps.downloads.outputs.cache-hit != 'true'
+      with:
+        path: |
+          storage/app/testing/process-core/composer-cache
+          ${{ steps.pnpm.outputs.path }}
+        key: ${{ steps.downloads.outputs.cache-primary-key }}

@@ -1,0 +1,96 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Console\Platforms\Eis;
+
+use App\Dto\Platforms\Eis\EisSearchFilter;
+use App\Models\Procurement\Crawler\Crawler;
+use App\Services\Platforms\Eis\Filters\Okpd2NodeSynchronizer;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
+use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
+
+/**
+ * Тонкая точка входа пересборки карты «код ОКПД2 → id НСИ»: разбор опций, вызов
+ * синхронизатора, печать отчёта и код возврата. Обход и сверка живут в
+ * `Okpd2NodeSynchronizer`, запись — в `Okpd2NodeStoreRepository`.
+ */
+#[Description('Пересобирает карту «код ОКПД2 → id НСИ» с ЕИС и показывает дрейф id')]
+#[AsCommand(name: 'crawler:okpd2-sync')]
+#[Signature('crawler:okpd2-sync
+        {--root= : id узла-корня НСИ (дефолт — config(platforms.eis.okpd2.root_external_id), раздел F)}
+        {--dry-run : только отчёт, без записи в prc_okpd2_nodes}
+        {--max-requests= : потолок запросов к площадке (дефолт — config(platforms.eis.okpd2.max_requests))}')]
+final class SyncOkpd2Nodes extends Command
+{
+    public function handle(Okpd2NodeSynchronizer $synchronizer): int
+    {
+        $root = $this->option('root');
+        $maxRequests = $this->option('max-requests');
+
+        $report = $synchronizer->run(
+            root: is_scalar($root) && (string) $root !== '' ? (string) $root : null,
+            dryRun: (bool) $this->option('dry-run'),
+            maxRequests: is_numeric($maxRequests) ? (int) $maxRequests : null,
+        );
+
+        $activeCodes = Crawler::query()->where('is_active', true)
+            ->whereHas('registry.platform', fn ($query) => $query->where('code', 'eis'))
+            ->with('registry.platform')->get()->flatMap(static function (Crawler $profile): array {
+                $filter = $profile->filter;
+
+                return $filter instanceof EisSearchFilter ? $filter->okpd2Codes : [];
+            })->all();
+        $report['drifted_active_codes'] = array_values(array_unique(array_intersect($report['drifted_codes'], $activeCodes)));
+
+        $this->line(sprintf(
+            'Запросов к площадке: %d · узлов снято: %d · режим: %s',
+            $report['requests'],
+            $report['nodes_seen'],
+            $report['written'] ? 'запись' : 'dry-run (карта не тронута)',
+        ));
+
+        $this->line(sprintf(
+            'Новых: %d · исчезнувших: %d · сменивших id: %d',
+            count($report['new']),
+            count($report['missing']),
+            count($report['changed']),
+        ));
+
+        foreach ($report['new'] as $node) {
+            $this->line("  + новый узел {$node['code']} (id {$node['external_id']})");
+        }
+
+        foreach ($report['missing'] as $node) {
+            $this->line("  ? не пришёл узел {$node['code']} (сохранённый id {$node['external_id']}) — из таблицы НЕ удалён");
+        }
+
+        foreach ($report['changed'] as $node) {
+            $this->line("  ! сменился id узла {$node['code']}: {$node['stored_external_id']} → {$node['external_id']}");
+        }
+
+        // Остаток обхода — результат ограничения потолком запросов:
+        // называется явно, потому что «узла нет» и «до узла не дошли» — разные вещи.
+        if ($report['not_traversed'] !== []) {
+            $this->warn(sprintf(
+                'Не обойдено (потолок запросов): %d узлов — %s',
+                count($report['not_traversed']),
+                implode(', ', $report['not_traversed']),
+            ));
+        }
+
+        if ($report['drifted_active_codes'] === []) {
+            return self::SUCCESS;
+        }
+
+        $this->error(sprintf(
+            'Дрейф затронул коды АКТИВНЫХ профилей: %s. Пересоберите карту целиком и проверьте выборку — '
+            .'расхождение одной пары (код, id) означает перенумерацию диапазона.',
+            implode(', ', $report['drifted_active_codes']),
+        ));
+
+        return self::FAILURE;
+    }
+}

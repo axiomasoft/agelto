@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "http-transient",
+      "role": "http",
+      "method": "GET",
+      "path": "/fixtures/transient",
+      "responses": [
+        {"status": 503, "headers": {"Retry-After": "1"}, "body": {"error": "fixture_unavailable"}},
+        {"status": 503, "headers": {"Retry-After": "1"}, "body": {"error": "fixture_unavailable"}},
+        {"status": 200, "headers": {}, "body": {"items": [{"id": "00042"}], "complete": true}}
+      ]
+    },
+    {
+      "id": "gemini-stop",
+      "role": "gemini",
+      "method": "POST",
+      "path": "/v1beta/models/fixture-gemini:generateContent",
+      "expected_model_json": {"items": [{"id": "00042", "amount": "1250000.50"}], "complete": true},
+      "responses": [{
+        "status": 200,
+        "headers": {"x-goog-request-id": "fixture-generation-001"},
+        "body": {
+          "candidates": [{"content": {"role": "model", "parts": [{"text": "{\"items\":[{\"id\":\"00042\",\"amount\":\"1250000.50\"}],\"complete\":true}"}]}, "finishReason": "STOP", "index": 0}],
+          "usageMetadata": {"promptTokenCount": 21, "candidatesTokenCount": 18, "totalTokenCount": 39},
+          "modelVersion": "fixture-gemini-1",
+          "responseId": "fixture-generation-001"
+        }
+      }]
+    },
+    {
+      "id": "gemini-max-tokens",
+      "role": "gemini",
+      "method": "POST",
+      "path": "/v1beta/models/fixture-gemini-max-tokens:generateContent",
+      "responses": [{
+        "status": 200,
+        "headers": {"x-goog-request-id": "fixture-generation-002"},
+        "body": {
+          "candidates": [{"content": {"role": "model", "parts": [{"text": "{\"items\":["}]}, "finishReason": "MAX_TOKENS", "index": 0}],
+          "usageMetadata": {"promptTokenCount": 21, "candidatesTokenCount": 4, "totalTokenCount": 25},
+          "modelVersion": "fixture-gemini-1",
+          "responseId": "fixture-generation-002"
+        }
+      }]
+    }
+  ]
+}

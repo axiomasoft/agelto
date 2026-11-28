@@ -1,0 +1,465 @@
+# Permit config inspection without deployment inputs. The fallback project and
+# .invalid image references cannot select a deployed release.
+name: ${COMPOSE_PROJECT_NAME:-agelto_unconfigured}
+
+services:
+  doctor:
+    image: ${IMAGE_TAG:+${IMAGE_REGISTRY:+${IMAGE_REGISTRY}/}agelto/doctor:}${IMAGE_TAG:-image-tag-required.invalid/agelto/doctor:unconfigured}
+    profiles: [doctor]
+    working_dir: /var/www/html
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 128
+    security_opt:
+      - no-new-privileges:true
+    secrets:
+      - app_key
+      - proxyma_wire_digest_key
+      - db_password
+      - redis_password
+      - minio_app_password
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: ${APP_URL}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      APP_KEY_FILE: /run/secrets/app_key
+      PROXYMA_WIRE_DIGEST_KEY_FILE: /run/secrets/proxyma_wire_digest_key
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_CACHE_HOST: redis-cache
+      REDIS_SESSION_HOST: redis-session
+      REDIS_PASSWORD_FILE: /run/secrets/redis_password
+      CACHE_STORE: redis
+      READINESS_SCHEDULER_CACHE_STORE: readiness
+      SESSION_DRIVER: redis
+      SESSION_CONNECTION: session
+      SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-true}
+      QUEUE_CONNECTION: redis
+      FILESYSTEM_DISK: s3
+      AWS_ACCESS_KEY_ID: ${MINIO_APP_USER:-agelto_app}
+      AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/minio_app_password
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_BUCKET: ${MINIO_BUCKET:-agelto}
+      AWS_ENDPOINT: http://minio:9000
+      AWS_USE_PATH_STYLE_ENDPOINT: "true"
+    networks:
+      - agelto_network
+    logging: &default_logging
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  app:
+    image: ${IMAGE_TAG:+${IMAGE_REGISTRY:+${IMAGE_REGISTRY}/}agelto/app:}${IMAGE_TAG:-image-tag-required.invalid/agelto/app:unconfigured}
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    stop_grace_period: 30s
+    working_dir: /var/www/html
+    mem_limit: 1g
+    cpus: 2.0
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - app_storage:/var/www/html/storage
+    ports:
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8080}:8080"
+    # File-backed secrets are generated into ignored local/secrets/.
+    secrets:
+      - app_key
+      - proxyma_wire_digest_key
+      - db_password
+      - redis_password
+      - minio_app_password
+    environment: &prod_env
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: ${APP_URL}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      DB_CONNECTION: pgsql
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,::1}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      CACHE_STORE: redis
+      READINESS_SCHEDULER_CACHE_STORE: readiness
+      SESSION_DRIVER: redis
+      SESSION_CONNECTION: session
+      SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-true}
+      QUEUE_CONNECTION: redis
+      LOG_CHANNEL: json
+      LOG_LEVEL: ${LOG_LEVEL:-warning}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_CACHE_HOST: redis-cache
+      REDIS_SESSION_HOST: redis-session
+      FILESYSTEM_DISK: s3
+      AWS_ACCESS_KEY_ID: ${MINIO_APP_USER:-agelto_app}
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_BUCKET: ${MINIO_BUCKET:-agelto}
+      AWS_ENDPOINT: http://minio:9000
+      AWS_USE_PATH_STYLE_ENDPOINT: "true"
+      AI_FIXTURES_DISK: estimates_s3
+      AWS_ESTIMATES_BUCKET: ${MINIO_ESTIMATES_BUCKET:-agelto-estimates}
+      # Указываем пути к файлам secrets — entrypoint читает их в APP_KEY / DB_PASSWORD / REDIS_PASSWORD / AWS_SECRET_ACCESS_KEY
+      APP_KEY_FILE: /run/secrets/app_key
+      PROXYMA_WIRE_DIGEST_KEY_FILE: /run/secrets/proxyma_wire_digest_key
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      REDIS_PASSWORD_FILE: /run/secrets/redis_password
+      AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/minio_app_password
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      redis-cache: { condition: service_healthy }
+      redis-session: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/up >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks:
+      - agelto_network
+    logging: *default_logging
+
+  horizon:
+    image: ${IMAGE_TAG:+${IMAGE_REGISTRY:+${IMAGE_REGISTRY}/}agelto/worker-prepare:}${IMAGE_TAG:-image-tag-required.invalid/agelto/worker-prepare:unconfigured}
+    restart: unless-stopped
+    # The FPM/Nginx base image uses SIGQUIT; Horizon listens for SIGTERM.
+    stop_signal: SIGTERM
+    # Цепочка таймаутов Process Core (config/horizon.php, config/queue.php, ExecuteWorkJob):
+    # ExecuteWorkJob::$timeout = 320s < max supervisor timeout (supervisor-process-download = 340s)
+    # < stop_grace_period (370s) < queue.retry_after (390s для process-download).
+    # stop_grace_period обязан быть больше самого длинного supervisor-таймаута (340s),
+    # чтобы Docker не отправил SIGKILL раньше, чем horizon:terminate дождётся текущих jobs.
+    stop_grace_period: ${HORIZON_STOP_GRACE_PERIOD:-370s}
+    working_dir: /var/www/html
+    mem_limit: 6g
+    cpus: 4.0
+    pids_limit: 512
+    # Решение ревизии БД (F-11 называет это дремлющим дефектом — Postgres нуждается в shm, не
+    # PHP-воркер): блок ОСТАЁТСЯ здесь как есть, а не переносится. CLAUDE.md («Очереди: Laravel
+    # Horizon») резервирует этот контейнер под будущую браузерную автоматизацию
+    # (`shm_size`/`CHROME_BIN`, Фаза 8 — Playwright/Chromium ещё не подключены, а рефакторинг
+    # вне задачи запрещён); независимо обоснованный `shm_size` для `postgres` — ниже.
+    shm_size: '2gb'
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - app_storage:/var/www/html/storage
+    command: ["php", "artisan", "horizon"]
+    secrets:
+      - app_key
+      - proxyma_wire_digest_key
+      - db_password
+      - redis_password
+      - minio_app_password
+    healthcheck:
+      test: ["CMD-SHELL", "php artisan horizon:status 2>/dev/null | grep -qiE 'running' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    environment: *prod_env
+    depends_on:
+      app: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks:
+      - agelto_network
+    logging: *default_logging
+
+  scheduler:
+    image: ${IMAGE_TAG:+${IMAGE_REGISTRY:+${IMAGE_REGISTRY}/}agelto/app:}${IMAGE_TAG:-image-tag-required.invalid/agelto/app:unconfigured}
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    stop_grace_period: 60s
+    working_dir: /var/www/html
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 128
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - app_storage:/var/www/html/storage
+    command: ["php", "artisan", "schedule:work"]
+    secrets:
+      - app_key
+      - proxyma_wire_digest_key
+      - db_password
+      - redis_password
+      - minio_app_password
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f '[a]rtisan schedule:work' >/dev/null && php artisan app:readiness --only=scheduler >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    environment: *prod_env
+    depends_on:
+      app: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks:
+      - agelto_network
+    logging: *default_logging
+
+  process-relay: &process_daemon
+    image: ${IMAGE_TAG:+${IMAGE_REGISTRY:+${IMAGE_REGISTRY}/}agelto/app:}${IMAGE_TAG:-image-tag-required.invalid/agelto/app:unconfigured}
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    stop_grace_period: 60s
+    working_dir: /var/www/html
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 128
+    security_opt:
+      - no-new-privileges:true
+    entrypoint: ["/usr/local/bin/docker-php-serversideup-entrypoint"]
+    command: ["php", "artisan", "process:daemon", "relay"]
+    volumes:
+      - app_storage:/var/www/html/storage
+    environment: *prod_env
+    secrets:
+      - app_key
+      - proxyma_wire_digest_key
+      - db_password
+      - redis_password
+      - minio_app_password
+    depends_on:
+      app: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "php", "artisan", "process:daemon", "relay", "--health"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - agelto_network
+    logging: *default_logging
+
+  process-reconciler:
+    <<: *process_daemon
+    command: ["php", "artisan", "process:daemon", "reconcile"]
+    healthcheck:
+      test: ["CMD", "php", "artisan", "process:daemon", "reconcile", "--health"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  process-feeder:
+    <<: *process_daemon
+    command: ["php", "artisan", "process:daemon", "feed"]
+    healthcheck:
+      test: ["CMD", "php", "artisan", "process:daemon", "feed", "--health"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  process-projector:
+    <<: *process_daemon
+    command: ["php", "artisan", "process:daemon", "project"]
+    healthcheck:
+      test: ["CMD", "php", "artisan", "process:daemon", "project", "--health"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  postgres:
+    image: ${IMAGE_TAG:+${IMAGE_REGISTRY:+${IMAGE_REGISTRY}/}agelto/postgres:}${IMAGE_TAG:-image-tag-required.invalid/agelto/postgres:unconfigured}
+    restart: unless-stopped
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 4g
+    cpus: 2.0
+    pids_limit: 256
+    # Ревизия БД (F-10/F-11/F-12) — те же параметры и то же обоснование, что `docker-compose.yml`
+    # (расширения и параметры одинаковы в dev и prod).
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_preload_libraries=pg_stat_statements"
+      - "-c"
+      - "statement_timeout=600000"
+      - "-c"
+      - "idle_in_transaction_session_timeout=300000"
+      - "-c"
+      - "log_min_duration_statement=1000"
+    shm_size: '512mb'
+    ports:
+      - "127.0.0.1:${PGSQL_PORT:-5432}:5432"
+    volumes:
+      - pgsql_data:/var/lib/postgresql
+      # Bind-mount под `make db:backup` (pg_dump + restore-check,
+      # docker/postgres/backup-and-verify.sh): дамп виден на ХОСТЕ (`./storage/backups`),
+      # переживает пересоздание контейнера. Off-host копирование/ротация/расписание cron —
+      # инфра-решение владельца, вне этой настройки.
+      - ./storage/backups:/backups
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - agelto_network
+    logging: *default_logging
+
+  redis:
+    image: &redis_image redis:8.12-alpine@sha256:5af80107c1eeecb484a2269b80a26d12bfa6521787da4663bd9f19f60a163483
+    restart: unless-stopped
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 128
+    # Durability: дефолтный redis-alpine
+    # без конфига живёт только на периодических RDB-снапшотах — crash/OOM Redis теряет
+    # очередь Horizon (до часа работы пайплайна). AOF everysec — канон 2026 (durability/
+    # производительность); noeviction — очередь задач, ключи нельзя вытеснять под
+    # memory-pressure как обычный кэш.
+    command: ["redis-server", "--aclfile", "/run/secrets/redis_acl", "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory", "512mb", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+      - ./docker/redis/entrypoint.sh:/usr/local/bin/agelto-redis-entrypoint:ro
+    secrets:
+      - redis_acl
+    entrypoint: ["/usr/local/bin/agelto-redis-entrypoint"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "--user", "health", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - agelto_network
+    logging: *default_logging
+
+  redis-cache:
+    image: *redis_image
+    restart: unless-stopped
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 128
+    command: ["redis-server", "--aclfile", "/run/secrets/redis_acl", "--save", "", "--appendonly", "no", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - ./docker/redis/entrypoint.sh:/usr/local/bin/agelto-redis-entrypoint:ro
+    secrets:
+      - redis_acl
+    entrypoint: ["/usr/local/bin/agelto-redis-entrypoint"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "--user", "health", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - agelto_network
+    logging: *default_logging
+
+  redis-session:
+    image: *redis_image
+    restart: unless-stopped
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 128
+    command: ["redis-server", "--aclfile", "/run/secrets/redis_acl", "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis_session_data:/data
+      - ./docker/redis/entrypoint.sh:/usr/local/bin/agelto-redis-entrypoint:ro
+    secrets:
+      - redis_acl
+    entrypoint: ["/usr/local/bin/agelto-redis-entrypoint"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "--user", "health", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - agelto_network
+    logging: *default_logging
+
+  minio:
+    image: pgsty/silo:RELEASE.2026-11-12T00-00-00Z@sha256:c20d112390b9a9ce8c11b8af95ad35bcaa62f4759663c09c936cd8d2b511f329
+    restart: unless-stopped
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 2g
+    cpus: 2.0
+    pids_limit: 256
+    command: ["server", "/data", "--console-address", ":9001"]
+    ports:
+      - "127.0.0.1:${MINIO_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-agelto}
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+    secrets:
+      - minio_root_password
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - agelto_network
+    logging: *default_logging
+
+networks:
+  agelto_network:
+    driver: bridge
+
+volumes:
+  pgsql_data:
+    name: ${PG_VOLUME_NAME:-${COMPOSE_PROJECT_NAME:-agelto_unconfigured}_pgsql_data}
+  redis_data:
+  redis_session_data:
+  minio_data:
+  app_storage:
+
+secrets:
+  app_key:
+    file: ./local/secrets/app_key
+  proxyma_wire_digest_key:
+    file: ./local/secrets/proxyma_wire_digest_key
+  db_password:
+    file: ./local/secrets/db_password
+  redis_password:
+    file: ./local/secrets/redis_password
+  redis_acl:
+    file: ./local/secrets/redis_acl
+  minio_root_password:
+    file: ./local/secrets/minio_root_password
+  minio_app_password:
+    file: ./local/secrets/minio_app_password

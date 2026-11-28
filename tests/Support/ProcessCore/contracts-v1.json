@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "valid_checkpoint": {
+    "stage_progress": {"stage": "listing", "payload": {"position": 7}, "schema_version": 1},
+    "provider_recovery_plan": {
+      "variant": "provider",
+      "mode": "resume_from_receipt",
+      "logical_request_id": "01900000-0000-7000-8000-000000000001",
+      "physical_call_id": "01900000-0000-7000-8000-000000000002",
+      "purpose": "generation",
+      "receipt": {
+        "id": "01900000-0000-7000-8000-000000000003",
+        "disk": "fixtures",
+        "key": "llm/receipts/physical/response",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "schema_version": 1
+      },
+      "expected_input_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recipe_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "request_epoch": 4,
+      "plan_version": 1
+    }
+  },
+  "invalid_checkpoint": {
+    "stage_progress": {"stage": "listing", "payload": {"position": 7}, "schema_version": 1},
+    "provider_recovery_plan": {"variant": "verified_error", "mode": "resume_from_receipt"}
+  }
+}

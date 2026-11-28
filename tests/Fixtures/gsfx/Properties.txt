@@ -1,0 +1,9 @@
+DocType=sdtSmeta
+Attribs.LocNum=ЛСР-ТЕСТ-01
+Attribs.ObjName=Тестовый объект — ремонт помещения
+Total=12345.67
+TotalCalcMethod=Res
+RegionInfo.RegionName=ФСНБ-2022 (с Изм. 1-13)
+RegionInfo.ZoneName=Базовый район
+GSmetaVersion=15.3.5.55343
+ModifyDate=05.02.2026 19:17:02

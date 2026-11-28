@@ -1,0 +1,45 @@
+{
+  "version": 2,
+  "repositories": [
+    {
+      "key": "azguard",
+      "repository": {
+        "host": "github.com",
+        "path": "axiomasoft/azguard"
+      },
+      "commit": "ebd613cb99b1d72b7b303032e0d7ed0dd7774f4f",
+      "packages": [
+        {
+          "name": "axiomasoft/azguard",
+          "path": "packages/core",
+          "version": "dev-main"
+        },
+        {
+          "name": "axiomasoft/azguard-filament",
+          "path": "packages/filament",
+          "version": "dev-main"
+        }
+      ]
+    },
+    {
+      "key": "proxyma",
+      "repository": {
+        "host": "github.com",
+        "path": "axiomasoft/proxyma"
+      },
+      "commit": "363354e180a9de76d7cfb80805b8444600554b6f",
+      "packages": [
+        {
+          "name": "axiomasoft/proxyma",
+          "path": "packages/core",
+          "version": "0.1.0"
+        },
+        {
+          "name": "axiomasoft/proxyma-filament",
+          "path": "packages/filament",
+          "version": "0.1.0"
+        }
+      ]
+    }
+  ]
+}

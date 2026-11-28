@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "skills": {
+    "ai-context-workflow": {
+      "source": "local"
+    },
+    "ecosystem-mcp": {
+      "source": "local"
+    },
+    "ecosystem-setup": {
+      "source": "local"
+    },
+    "eis-recon": {
+      "source": "local"
+    },
+    "estimate-extraction-dev": {
+      "source": "local"
+    },
+    "llm-layer-dev": {
+      "source": "local"
+    },
+    "node-yarn-preflight": {
+      "source": "local"
+    },
+    "pest-testing": {
+      "source": "local"
+    },
+    "procurement-pipeline-dev": {
+      "source": "local"
+    },
+    "project-map": {
+      "source": "swissknifeman",
+      "bucket": "general"
+    },
+    "prompt-engineering-agelto": {
+      "source": "local"
+    },
+    "testing-rules": {
+      "source": "local"
+    }
+  },
+  "sources": {
+    "swissknifeman": {
+      "ref": "registry"
+    }
+  }
+}

@@ -1,0 +1,36 @@
+name: Set up pinned vendor sources
+description: Check out both repositories at the exact commits in the v2 vendor lock.
+runs:
+  using: composite
+  steps:
+    - name: Resolve vendor lock rows
+      id: pins
+      shell: bash
+      run: |
+        pins=$(python3 -B docker/scripts/vendor_manifest.py --rows)
+        declare -A repositories commits
+        while IFS=$'\t' read -r key repository commit; do
+          repositories[$key]=$repository
+          commits[$key]=$commit
+        done <<< "$pins"
+        for key in azguard proxyma; do
+          printf '%s-repository=%s\n%s-commit=%s\n' \
+            "$key" "${repositories[$key]}" "$key" "${commits[$key]}" >> "$GITHUB_OUTPUT"
+        done
+    - name: Check out Azguard
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        repository: ${{ steps.pins.outputs.azguard-repository }}
+        ref: ${{ steps.pins.outputs.azguard-commit }}
+        path: local/vendors/azguard
+        persist-credentials: false
+    - name: Check out Proxyma
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        repository: ${{ steps.pins.outputs.proxyma-repository }}
+        ref: ${{ steps.pins.outputs.proxyma-commit }}
+        path: local/vendors/proxyma
+        persist-credentials: false
+    - name: Verify both checkouts
+      shell: bash
+      run: bash docker/scripts/vendor-sync.sh --check

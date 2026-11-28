@@ -1,0 +1,136 @@
+*.log
+Thumbs.db
+/.phpunit.cache
+/bootstrap/ssr
+/node_modules
+/.vite
+/public/build
+/public/hot
+/public/storage
+/public/css
+/public/js
+/public/fonts
+/public/vendor
+/storage/*.key
+/storage/pail
+/resources/js/actions
+/resources/js/routes
+/resources/js/wayfinder
+/vendor
+.DS_Store
+.env
+.env.backup
+.env.production
+.env.docker
+.env.docker.production
+/docker-compose.override.yml
+.phpactor.json
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+npm-debug.log
+yarn-error.log
+/.pnpm-store
+/playwright/.auth/
+/playwright-report/
+/test-results/
+/.e2e/
+
+/auth.json
+/local/vendors/azguard/
+/local/vendors/proxyma/
+/local/secrets/*
+!/local/secrets/.gitignore
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
+.yarn/cache
+
+# AI Tools
+# CLAUDE.md / AGENTS.md / GEMINI.md ведём вручную (Boost = только MCP, не композитор контекста)
+.claude/*
+# Логи инструментов внутри каталогов планов: `git add plans/<PLAN-ID>` шага 6 топологии
+# закрытия item'а не различает их и файлов плана и дважды затягивал в индекс (P3.1).
+plans/**/.claude/
+plans/**/.swissknife/
+/.swissknife/
+/.swissknifeman/
+.gemini
+.idea/
+.junie/
+.vscode/
+.mcp.json
+.mcp.json.example
+/.grok/
+
+# Boost: other agent configs are generated
+.agents/
+.codex/*
+.github/skills/
+opencode.json
+
+# Локальные artifacts инструментов и черновики
+*.bak
+__pycache__/
+*.py[cod]
+.serena/
+AUDIT.md
+tmp/
+
+# Одноразовые characterization-пробы и relay в другой репозиторий.
+# Постоянные отчёты аудита в research/ сохраняются в Git.
+/research/FinalCorpusAuditProbeTest.php
+/research/*-production-audit/ProductionAuditProbeTest.php
+/research/*-swissknifeman-task-opt-in-routing-field-incident.md
+
+# Сборка vitepress — генерируемая статика, не храним в репозитории
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+/var/private-documentation/
+
+# Old/ — архив v1 (см. 07-carryover-from-v1.md); те же build-артефакты, что и раньше,
+# но корневые паттерны выше (/vendor, /node_modules и т.д.) на подпуть не распространяются
+Old/vendor
+Old/node_modules
+Old/public/build
+Old/public/hot
+Old/public/storage
+Old/public/css
+Old/public/js
+Old/public/fonts
+Old/public/vendor
+Old/resources/js/actions
+Old/resources/js/routes
+Old/resources/js/wayfinder
+Old/docs/.vitepress/dist/
+Old/.phpunit.cache
+Old/storage/*.key
+Old/storage/pail
+Old/bootstrap/ssr
+
+
+app/Console/Commands/Playground.php
+project_context.txt
+.playwright-mcp
+
+# Owner-filled production host profile: it can name secret files and infrastructure values,
+# but must never be committed. The checked-in example is the schema documentation.
+/docker/host/production-profile
+
+# Эталонный корпус смет: файлы живут в хранилище (диск estimates), в git — только
+# манифест и *.gold.json (план 2026.07.26-EST-TRAIN, D1). 155 МБ бинарей в историю не пускаем.
+/estimates/files/
+/estimates/*.zip
+
+# Отчёты прогонов estimate:gold:build/estimate:bench:formats (ai.fixtures.reports_dir, D111) —
+# рабочие артефакты, не храним в git.
+/estimates/reports/
+.grok/config.toml
+.cursor/mcp.json
+.codex/config.toml
+.claude/agent-pack.lock.json
+
+# Локальные материалы аудитов и артефакты прогонов
+/audits/local/

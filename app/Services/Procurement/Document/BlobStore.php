@@ -1,0 +1,420 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\Procurement\Document;
+
+use App\Dto\Procurement\Document\Storage\BlobReference;
+use App\Dto\Procurement\Document\Storage\StorageReservationRequest;
+use App\Dto\Procurement\Document\Storage\StoredBlobUpload;
+use App\Dto\Procurement\Document\Storage\VerifiedArtifact;
+use App\Dto\Procurement\Process\Execution\ExecutionContext;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Enums\Procurement\Document\StoragePhase;
+use App\Exceptions\Procurement\Document\ArtifactUnavailable;
+use App\Repositories\Procurement\Document\ArtifactRepairRepository;
+use App\Repositories\Procurement\Document\StorageCapacityRepository;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
+use App\Support\Database\TransactionGuard;
+use App\Support\Streams\BoundedStreamException;
+use App\Support\Streams\BoundedStreamHasher;
+use Aws\CommandInterface;
+use Aws\Middleware;
+use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Filesystem\AwsS3V3Adapter;
+use Illuminate\Support\Facades\Storage;
+use League\Flysystem\Local\LocalFilesystemAdapter;
+
+/** Platform-free bounded immutable uploads. An uncertain write never releases its reservation. */
+final readonly class BlobStore
+{
+    public function __construct(private StorageCapacityRepository $capacity, private ArtifactGarbageCollector $gc,
+        private PrepareWorkspace $workspace, private ArtifactRepairRepository $artifacts) {}
+
+    /**
+     * @param  resource  $source
+     */
+    public function put(StorageReservationRequest|StoredBlobUpload $reservation, $source, ?StorageReservationRequest $temporary = null, ?ExecutionContext $execution = null, bool $cleanupTemporary = true): VerifiedArtifact
+    {
+        TransactionGuard::forbidActive('Object I/O');
+        if (! is_resource($source) || get_resource_type($source) !== 'stream') {
+            throw new \InvalidArgumentException('Expected a readable stream.');
+        }
+        if ($reservation instanceof StoredBlobUpload) {
+            return $this->putStored($reservation, $source);
+        }
+        if ($temporary === null || $temporary->domainId == $reservation->domainId || $temporary->byteUpperBound < $reservation->byteUpperBound
+            || ! Storage::disk($temporary->disk)->getAdapter() instanceof LocalFilesystemAdapter) {
+            throw new \InvalidArgumentException('Upload spool needs a separate local temporary capacity reservation.');
+        }
+        $prepareSpool = $temporary->phase === StoragePhase::Prepare;
+        $workspace = $prepareSpool ? $this->workspace->open($temporary) : null;
+        if (! $prepareSpool) {
+            $this->capacity->beginWrite($temporary);
+        }
+        $spool = null;
+        try {
+            if (! $prepareSpool) {
+                $this->workspace->recordFileWriter($temporary);
+            }
+            [$size, $expected] = $this->spoolSource($source, $reservation, $temporary, $workspace, $execution, $spool);
+            $this->uploadSpooledObject($reservation, $spool, $size, $execution);
+
+            return $this->verify($reservation, $expected, $size, $execution);
+        } finally {
+            if (is_resource($spool)) {
+                fclose($spool);
+            }
+            if ($prepareSpool) {
+                if ($cleanupTemporary) {
+                    $this->workspace->finish($temporary);
+                }
+            } else {
+                $this->capacity->finishWrite($temporary);
+                $this->workspace->clearFileWriter($temporary);
+                if ($cleanupTemporary) {
+                    $this->gc->cleanup($temporary);
+                }
+            }
+        }
+    }
+
+    /**
+     * @param  resource  $source
+     * @param  resource|null  $spool
+     *
+     * @param-out resource  $spool
+     *
+     * @return array{0: int, 1: ContentHash}
+     */
+    private function spoolSource(
+        $source,
+        StorageReservationRequest $reservation,
+        StorageReservationRequest $temporary,
+        ?string $workspace,
+        ?ExecutionContext $execution,
+        mixed &$spool,
+    ): array {
+        $tmpDisk = Storage::disk($temporary->disk);
+        if (! $tmpDisk->makeDirectory(dirname($temporary->objectKey()))) {
+            throw new ArtifactUnavailable('Temporary directory unavailable.');
+        }
+        $opened = fopen($workspace === null ? $tmpDisk->path($temporary->objectKey()) : $workspace.'/spool', 'x+b');
+        if ($opened === false) {
+            throw new ArtifactUnavailable('Temporary storage unavailable.');
+        }
+        $spool = $opened;
+        try {
+            $hashed = BoundedStreamHasher::process(
+                source: $source,
+                maxBytes: $reservation->byteUpperBound,
+                sink: $spool,
+                chunkSize: 8192,
+                hash: true,
+                capReadLength: true,
+                onTick: $execution === null ? null : static fn () => $execution->tick(),
+            );
+        } catch (BoundedStreamException $exception) {
+            throw match ($exception->reason) {
+                BoundedStreamException::REASON_READ => new ArtifactUnavailable('Source stream failed.', previous: $exception),
+                BoundedStreamException::REASON_OVERFLOW => new ArtifactUnavailable('Stream exceeds its reserved byte ceiling.', previous: $exception),
+                default => new ArtifactUnavailable('Temporary storage write failed.', previous: $exception),
+            };
+        }
+
+        return [$hashed->bytes, new ContentHash($hashed->sha256)];
+    }
+
+    /** @param resource $spool */
+    private function uploadSpooledObject(
+        StorageReservationRequest $reservation,
+        $spool,
+        int $size,
+        ?ExecutionContext $execution,
+    ): void {
+        $disk = Storage::disk($reservation->disk);
+        $remote = ! $disk->getAdapter() instanceof LocalFilesystemAdapter
+            && config("filesystems.disks.{$reservation->disk}.driver") === 's3';
+        if ($remote && $reservation->attemptId === null) {
+            throw new ArtifactUnavailable('Remote upload requires a work attempt.');
+        }
+        $putStarted = false;
+        $confirmed = false;
+        $execution?->tick();
+        $this->capacity->beginWrite($reservation);
+        try {
+            $this->workspace->recordFileWriter($reservation);
+            if ($disk->exists($reservation->objectKey())) {
+                throw new ArtifactUnavailable('Immutable upload key already exists.');
+            }
+            if (! rewind($spool)) {
+                throw new ArtifactUnavailable('Temporary upload stream cannot be rewound.');
+            }
+            $execution?->tick();
+            $options = $remote ? $this->remoteWriteOptions($reservation->disk, $reservation, $spool, $size) : [];
+            $putStarted = true;
+            $confirmed = $remote
+                ? $disk->put($reservation->objectKey(), $spool, $options)
+                : $disk->put($reservation->objectKey(), $spool);
+            if (! $confirmed) {
+                throw new ArtifactUnavailable('Object write unconfirmed.');
+            }
+        } finally {
+            // A failed remote response can leave a request in flight after the caller exits.
+            if (! $remote) {
+                $this->capacity->finishWrite($reservation);
+                $this->workspace->clearFileWriter($reservation);
+            } elseif (! $putStarted || $confirmed) {
+                // Reconciliation may already have acknowledged this stopped writer.
+                $this->capacity->finishStoppedWrite($reservation);
+            }
+        }
+
+        if ($remote) {
+            $this->assertRemoteWriter($reservation);
+        }
+    }
+
+    /** @param resource $source */
+    private function putStored(StoredBlobUpload $upload, $source): VerifiedArtifact
+    {
+        $reservation = $upload->reservation;
+        $disk = Storage::disk($reservation->disk);
+        $key = $reservation->objectKey();
+        $remote = ! $disk->getAdapter() instanceof LocalFilesystemAdapter;
+        if ($remote && config("filesystems.disks.{$reservation->disk}.driver") !== 's3') {
+            throw new ArtifactUnavailable('Stored upload requires a local or S3 disk.');
+        }
+        if ($upload->sizeBytes < 0 || $upload->sizeBytes > $reservation->byteUpperBound
+            || (fstat($source)['size'] ?? null) !== $upload->sizeBytes || ! rewind($source)) {
+            throw new ArtifactUnavailable('Stored upload requires a seekable stream of the verified size.');
+        }
+        $this->capacity->assertStoredUploadLease($reservation);
+        $options = $remote ? $this->remoteWriteOptions(
+            disk: $reservation->disk, writer: $reservation, source: $source, size: $upload->sizeBytes, storedUpload: true,
+        ) : [];
+
+        if ($remote) {
+            $this->capacity->beginWrite($reservation);
+        } else {
+            $this->workspace->beginStoredFileWrite($reservation);
+        }
+        $started = false;
+        $confirmed = false;
+        try {
+            $this->capacity->assertStoredUploadLease($reservation);
+            $started = true;
+            $confirmed = $remote ? $disk->put(path: $key, contents: $source, options: $options) : $disk->put(path: $key, contents: $source);
+        } finally {
+            if (! $remote || ! $started || $confirmed) {
+                $this->capacity->finishStoppedWrite($reservation);
+            }
+            if (! $remote) {
+                $this->workspace->clearFileWriter($reservation);
+            }
+        }
+        if (! $confirmed) {
+            throw new ArtifactUnavailable("Не удалось сохранить запись архива в object storage: {$key}");
+        }
+        $this->capacity->assertStoredUploadLease($reservation);
+        $reader = $disk instanceof AwsS3V3Adapter ? Storage::build([...$disk->getConfig(), 'stream_reads' => true]) : $disk;
+        if (! $this->matchesBlob(disk: $reader, key: $key, expectedHash: $upload->hash, expectedSize: $upload->sizeBytes, execution: null)) {
+            throw new ArtifactUnavailable("Object storage вернул неполную или другую запись архива: {$key}");
+        }
+
+        return new VerifiedArtifact(reservation: $reservation, hash: $upload->hash, sizeBytes: $upload->sizeBytes);
+    }
+
+    public function verify(StorageReservationRequest $reservation, ContentHash $expected, int $size, ?ExecutionContext $execution = null): VerifiedArtifact
+    {
+        TransactionGuard::forbidActive('Object I/O');
+        $this->capacity->assertStaged($reservation);
+        $stream = Storage::disk($reservation->disk)->readStream($reservation->objectKey());
+        if (! is_resource($stream)) {
+            throw new ArtifactUnavailable('Immutable object unavailable.');
+        }
+        try {
+            $hashed = BoundedStreamHasher::process(
+                source: $stream,
+                maxBytes: $reservation->byteUpperBound,
+                chunkSize: 8192,
+                onTick: $execution === null ? null : static fn () => $execution->tick(),
+            );
+            if ($hashed->bytes !== $size || $hashed->sha256 !== $expected->hex) {
+                throw new ArtifactUnavailable('Immutable object verification failed.');
+            }
+
+            return new VerifiedArtifact($reservation, $expected, $size);
+        } catch (BoundedStreamException $exception) {
+            throw match ($exception->reason) {
+                BoundedStreamException::REASON_OVERFLOW => new ArtifactUnavailable('Stored object exceeds reservation.', previous: $exception),
+                default => new ArtifactUnavailable('Object verification read failed.', previous: $exception),
+            };
+        } finally {
+            fclose($stream);
+        }
+    }
+
+    /** Verify/repair a deduplicated object's immutable bytes before the DB-only ref acquisition gate. */
+    public function verifyExisting(VerifiedArtifact $artifact, ?ExecutionContext $execution = null): void
+    {
+        TransactionGuard::forbidActive('Object I/O');
+        $row = LedgerRow::one("SELECT id,disk,object_key,size_bytes FROM prc_document_blobs
+            WHERE storage_domain_id=? AND content_hash=decode(?,'hex') AND deletion_marked_at IS NULL",
+            [$artifact->reservation->domainId->value, $artifact->hash->hex]);
+        if ($row === null) {
+            return;
+        }
+        $disk = Storage::disk($row->string('disk'));
+        $key = $row->string('object_key');
+        if ($this->matches($disk, $key, $artifact, $execution)) {
+            return;
+        }
+        $source = Storage::disk($artifact->reservation->disk)->readStream($artifact->reservation->objectKey());
+        if (! is_resource($source)) {
+            throw new ArtifactUnavailable('Verified repair source unavailable.');
+        }
+        $blob = new BlobReference(new ProcessUuid($row->string('id')), $artifact->reservation->domainId,
+            $artifact->hash, $row->string('disk'), $key, $row->int('size_bytes'));
+        $confirmed = false;
+        $remote = ! $disk->getAdapter() instanceof LocalFilesystemAdapter
+            && config("filesystems.disks.{$blob->disk}.driver") === 's3';
+        $claim = null;
+        try {
+            $execution?->tick();
+            $options = $remote ? $this->remoteWriteOptions($blob->disk, $artifact->reservation, $source, $artifact->sizeBytes) : [];
+            // Re-read and pin under the capacity authority before touching the older immutable key.
+            // A completed GC means the caller will acquire its own fresh staging object instead.
+            if ($remote) {
+                $claim = $this->artifacts->beginRemoteRepair($blob, source: $artifact->reservation);
+                if ($claim === null) {
+                    return;
+                }
+            } elseif (! $this->artifacts->beginRepair($blob)) {
+                return;
+            }
+            $this->workspace->recordRepairWriter($blob);
+            $confirmed = $remote ? $disk->put($key, $source, $options) : $disk->put($key, $source);
+            if (! $confirmed || ! $this->matches($disk, $key, $artifact, $execution)) {
+                throw new ArtifactUnavailable('Immutable duplicate repair unconfirmed.');
+            }
+        } finally {
+            fclose($source);
+            if ($confirmed) {
+                $this->workspace->clearRepairWriter($blob);
+                if ($claim === null) {
+                    $this->artifacts->finishRepair($blob);
+                } elseif (! $this->artifacts->finishRemoteRepair($blob, claim: $claim)) {
+                    throw new ArtifactUnavailable('Canonical repair ownership changed.');
+                }
+            }
+        }
+    }
+
+    /**
+     * @param  resource  $source
+     * @return array{mup_threshold: int, before_upload: \Closure(CommandInterface): void}
+     */
+    private function remoteWriteOptions(string $disk, StorageReservationRequest $writer, $source, int $size, bool $storedUpload = false): array
+    {
+        $timeout = config("filesystems.disks.{$disk}.http.timeout");
+        if ((! is_float($timeout) && ! is_int($timeout)) || ! is_finite($timeout) || $timeout <= 0) {
+            throw new ArtifactUnavailable('Remote upload requires a finite HTTP timeout.');
+        }
+        if ((fstat($source)['size'] ?? null) !== $size) {
+            throw new ArtifactUnavailable('Remote upload requires a stream of the verified size.');
+        }
+        $assertWriter = $storedUpload
+            ? fn () => $this->capacity->assertStoredUploadLease($writer)
+            : fn () => $this->assertRemoteWriter($writer);
+        $assertWriter();
+
+        // Recovery waits for one request timeout after the lease. An unknown size, multipart
+        // upload or SDK retry could extend writes past that window.
+        return [
+            'mup_threshold' => PHP_INT_MAX,
+            'before_upload' => static function (CommandInterface $command) use ($assertWriter, $timeout): void {
+                $command['@retries'] = 0;
+                $httpOptions = $command['@http'];
+                $command['@http'] = ['timeout' => $timeout] + (is_array($httpOptions) ? $httpOptions : []);
+                $command->getHandlerList()->appendAttempt(Middleware::tap($assertWriter));
+            },
+        ];
+    }
+
+    private function assertRemoteWriter(StorageReservationRequest $writer): void
+    {
+        if (LedgerRow::one(
+            sql: "SELECT 1 FROM prc_process_attempts a JOIN prc_process_work w ON w.id = a.work_id
+                WHERE a.id = ? AND w.id = ? AND a.generation = ? AND a.finished_at IS NULL
+                AND w.generation = a.generation AND w.owner_token = ? AND w.state = 'running'
+                AND w.lease_until > clock_timestamp()",
+            bindings: [$writer->attemptId?->value, $writer->workId?->value, $writer->generation, $writer->ownerToken->value],
+        ) === null) {
+            throw new ArtifactUnavailable('Remote upload requires a live writer lease.');
+        }
+    }
+
+    public function recoverStoppedRepair(BlobReference $blob): bool
+    {
+        TransactionGuard::forbidActive('Object I/O');
+        $disk = Storage::disk($blob->disk);
+        if (! $disk->getAdapter() instanceof LocalFilesystemAdapter && config("filesystems.disks.{$blob->disk}.driver") === 's3') {
+            $claim = $this->artifacts->remoteRepairClaim($blob);
+            if ($claim === null) {
+                return false;
+            }
+            $claimedAt = $claim->string('repair_claimed_at');
+            $attempt = $claim->nullableString('repair_attempt_id');
+
+            // A subsequent writer can retry a missing or incomplete repair; the canonical key remains catalogued.
+            return $this->workspace->remoteWriterStopped($blob->disk, $attempt === null ? null : new ProcessUuid($attempt), unownedSince: $claimedAt)
+                && $this->artifacts->finishRemoteRepair($blob, claim: $claimedAt);
+        }
+        if (! $this->workspace->repairWriterStopped($blob)) {
+            return false;
+        }
+        if (! $this->matchesBlob($disk, $blob->objectKey, $blob->hash, $blob->sizeBytes, null)) {
+            return false;
+        }
+        $this->workspace->clearRepairWriter($blob);
+        $this->artifacts->finishRepair($blob);
+
+        return true;
+    }
+
+    private function matches(Filesystem $disk, string $key, VerifiedArtifact $artifact, ?ExecutionContext $execution): bool
+    {
+        return $this->matchesBlob($disk, $key, $artifact->hash, $artifact->sizeBytes, $execution);
+    }
+
+    private function matchesBlob(Filesystem $disk, string $key, ContentHash $expectedHash, int $expectedSize, ?ExecutionContext $execution): bool
+    {
+        if (! $disk->exists($key)) {
+            return false;
+        }
+        $stream = $disk->readStream($key);
+        if (! is_resource($stream)) {
+            return false;
+        }
+        try {
+            $hashed = BoundedStreamHasher::process(
+                source: $stream,
+                maxBytes: $expectedSize,
+                chunkSize: 8192,
+                onTick: $execution === null ? null : static fn () => $execution->tick(),
+            );
+
+            return $hashed->bytes === $expectedSize && $hashed->sha256 === $expectedHash->hex;
+        } catch (BoundedStreamException $exception) {
+            if ($exception->reason === BoundedStreamException::REASON_OVERFLOW) {
+                return false;
+            }
+
+            throw new ArtifactUnavailable('Immutable duplicate verification failed.', previous: $exception);
+        } finally {
+            fclose($stream);
+        }
+    }
+}

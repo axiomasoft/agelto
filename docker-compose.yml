@@ -1,0 +1,412 @@
+name: ${COMPOSE_PROJECT_NAME:-agelto}
+
+services:
+  doctor:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: doctor
+    profiles: [doctor]
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    environment:
+      APP_ENV: ${APP_ENV}
+      APP_KEY_FILE: /run/secrets/app_key
+      PROXYMA_WIRE_DIGEST_KEY_FILE: /run/secrets/proxyma_wire_digest_key
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD_FILE: /run/secrets/redis_password
+      AWS_ACCESS_KEY_ID: ${MINIO_APP_USER:-agelto_app}
+      AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/minio_app_password
+    secrets:
+      - app_key
+      - proxyma_wire_digest_key
+      - db_password
+      - redis_password
+      - minio_app_password
+    networks:
+      - agelto_network
+
+  app:
+    image: &app_image ${COMPOSE_PROJECT_NAME:-agelto}-app
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: development
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    stop_grace_period: 30s
+    working_dir: /var/www/html
+    # storage/app, storage/logs, vendor — bind-mount с хоста (не именованный volume), поэтому
+    # при смене владельца на хосте (composer install/require с хоста) нужен разовый
+    # `docker compose exec -u root app chown -R www-data:www-data storage vendor`:
+    # у serversideup/php:8.4-fpm-nginx НЕТ PUID/PGID-ремаппинга www-data под хостовой uid
+    # (в отличие от some других образов) — проверено, в entrypoint.d нет PUID-логики,
+    # только PHP_FPM_CHILD_PROCESS_USER/_GROUP (задают FPM-пул, не системного пользователя).
+    volumes:
+      - ./:/var/www/html
+      - app_bootstrap_cache:/var/www/html/bootstrap/cache
+      - app_storage_framework:/var/www/html/storage/framework
+      - app_pest_tia:/var/www/.pest
+      # Dev-only override — pcov.enabled=1 постоянно, без правки Dockerfile/prod-образа
+      # (docs/dev/process/testing.md §Tia).
+      - ./docker/php/conf.d/pcov-dev.ini:/usr/local/etc/php/conf.d/pcov.ini:ro
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment: &app_env
+      APP_NAME: ${APP_NAME}
+      APP_ENV: ${APP_ENV}
+      APP_KEY_FILE: /run/secrets/app_key
+      PROXYMA_WIRE_DIGEST_KEY_FILE: /run/secrets/proxyma_wire_digest_key
+      APP_DEBUG: ${APP_DEBUG}
+      # APP_URL — только из смонтированного .env: иначе значение «застывает» при create контейнера.
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD_FILE: /run/secrets/redis_password
+      CACHE_STORE: ${CACHE_STORE:-redis}
+      READINESS_SCHEDULER_CACHE_STORE: ${READINESS_SCHEDULER_CACHE_STORE:-readiness}
+      SESSION_DRIVER: ${SESSION_DRIVER:-redis}
+      SESSION_CONNECTION: ${SESSION_CONNECTION:-session}
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-redis}
+      FILESYSTEM_DISK: s3
+      AWS_ACCESS_KEY_ID: ${MINIO_APP_USER:-agelto_app}
+      AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/minio_app_password
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_BUCKET: ${MINIO_BUCKET:-agelto}
+      AWS_ENDPOINT: http://minio:9000
+      AWS_USE_PATH_STYLE_ENDPOINT: "true"
+      AI_FIXTURES_DISK: estimates
+      AWS_ESTIMATES_BUCKET: ${MINIO_ESTIMATES_BUCKET:-agelto-estimates}
+    secrets:
+      - app_key
+      - proxyma_wire_digest_key
+      - db_password
+      - redis_password
+      - minio_app_password
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/up >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks:
+      - agelto_network
+
+  horizon:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: development-prepare
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    # Цепочка таймаутов Process Core: ExecuteWorkJob::$timeout (320s) < supervisor-process-download (340s)
+    # < stop_grace_period (370s) < redis_process_download.retry_after (390s).
+    stop_grace_period: 370s
+    working_dir: /var/www/html
+    command: ["php", "artisan", "horizon"]
+    volumes:
+      - ./:/var/www/html
+      - app_bootstrap_cache:/var/www/html/bootstrap/cache
+      - app_storage_framework:/var/www/html/storage/framework
+      - app_pest_tia:/var/www/.pest
+    environment: *app_env
+    secrets:
+      - app_key
+      - proxyma_wire_digest_key
+      - db_password
+      - redis_password
+      - minio_app_password
+    depends_on:
+      app: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "php artisan horizon:status 2>/dev/null | grep -qiE 'running' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - agelto_network
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: development
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    stop_grace_period: 60s
+    working_dir: /var/www/html
+    entrypoint: ["/usr/local/bin/docker-php-serversideup-entrypoint"]
+    command: ["php", "artisan", "schedule:work"]
+    volumes:
+      - ./:/var/www/html
+      - app_bootstrap_cache:/var/www/html/bootstrap/cache
+      - app_storage_framework:/var/www/html/storage/framework
+      - app_pest_tia:/var/www/.pest
+    environment: *app_env
+    secrets:
+      - app_key
+      - proxyma_wire_digest_key
+      - db_password
+      - redis_password
+      - minio_app_password
+    depends_on:
+      app: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f '[a]rtisan schedule:work' >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - agelto_network
+
+  process-relay: &process_daemon
+    image: *app_image
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    stop_grace_period: 60s
+    working_dir: /var/www/html
+    entrypoint: ["/usr/local/bin/docker-php-serversideup-entrypoint"]
+    command: ["php", "artisan", "process:daemon", "relay"]
+    volumes:
+      - ./:/var/www/html
+      - app_bootstrap_cache:/var/www/html/bootstrap/cache
+      - app_storage_framework:/var/www/html/storage/framework
+    environment: *app_env
+    secrets:
+      - app_key
+      - proxyma_wire_digest_key
+      - db_password
+      - redis_password
+      - minio_app_password
+    depends_on:
+      app: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "php", "artisan", "process:daemon", "relay", "--health"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - agelto_network
+
+  process-reconciler:
+    <<: *process_daemon
+    command: ["php", "artisan", "process:daemon", "reconcile"]
+    healthcheck:
+      test: ["CMD", "php", "artisan", "process:daemon", "reconcile", "--health"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  process-feeder:
+    <<: *process_daemon
+    command: ["php", "artisan", "process:daemon", "feed"]
+    healthcheck:
+      test: ["CMD", "php", "artisan", "process:daemon", "feed", "--health"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  process-projector:
+    <<: *process_daemon
+    command: ["php", "artisan", "process:daemon", "project"]
+    healthcheck:
+      test: ["CMD", "php", "artisan", "process:daemon", "project", "--health"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  vite:
+    image: node:26-trixie@sha256:f8e5d4bb28fa55c74f1345166a082a10b7c68f22304350c1ce0d18358ae94996
+    working_dir: /var/www/html
+    command: ["sh", "-lc", "npm install --global corepack@0.36.0 && corepack enable && pnpm install --frozen-lockfile && pnpm dev --host=0.0.0.0 --port=${VITE_PORT:-5173}"]
+    volumes:
+      - ./:/var/www/html
+      - vite_node_modules:/var/www/html/node_modules
+      - vite_pnpm_store:/pnpm/store
+    environment:
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      PNPM_STORE_DIR: /pnpm/store
+      VITE_PORT: ${VITE_PORT:-5173}
+    ports:
+      - "${VITE_PORT:-5173}:${VITE_PORT:-5173}"
+    depends_on:
+      app: { condition: service_healthy }
+    networks:
+      - agelto_network
+
+  postgres:
+    build:
+      context: ./docker/postgres
+      dockerfile: Dockerfile
+    image: agelto_postgres:19-partman
+    restart: unless-stopped
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    # Ревизия параметров БД (F-10/F-11/F-12): текущее значение — база образа
+    # (shared_preload_libraries пуст, /dev/shm — дефолтные 64 МБ) — снято `SHOW`/`df -h /dev/shm`
+    # на 2026-08-05, findings/rag-2026-07-31.md §7.
+    # - shared_preload_libraries=pg_stat_statements — единственный источник per-query
+    #   calls/total_exec_time/wal_bytes (OQ-1, F-12); значение ДОПОЛНЯЕТ пустой список, ничего
+    #   не теряет (правило 2 item'а).
+    # - statement_timeout=600000 (10 мин) — выше любой измеренной боевой операции (макс.
+    #   HTTP-фетч 18 577 мс по нагрузочному замеру) и типового объёма миграций проекта;
+    #   `postgresql.org/docs/current/runtime-config-client.html` предостерегает от глобального
+    #   значения «впритык» — порог даёт запас, а не имитирует роль-специфичный лимит.
+    # - idle_in_transaction_session_timeout=300000 (5 мин) — F-10: зависшая транзакция держит
+    #   `xmin` неограниченно; порог покрывает самый длинный standard supervisor Horizon
+    #   (config/horizon.php — extraction=360с), while OCR runs in its isolated prepare lane.
+    # - log_min_duration_statement=1000 (1 с) — минимальный порог наблюдаемости без риска
+    #   переполнить лог (документированный baseline).
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_preload_libraries=pg_stat_statements"
+      - "-c"
+      - "statement_timeout=600000"
+      - "-c"
+      - "idle_in_transaction_session_timeout=300000"
+      - "-c"
+      - "log_min_duration_statement=1000"
+    # shm нужен Postgres (параллельные планы, `partman.run_maintenance()`, сортировки), а не
+    # PHP-воркеру — F-11. Дефолт Docker 64 МБ мал для parallel query/maintenance на растущем
+    # корпусе; 512 МБ — задокументированный безопасный порог для контейнеров Postgres 17
+    # (last9.io/blog/how-to-configure-dockers-shared-memory-size-dev-shm, 2026-08-05).
+    shm_size: '512mb'
+    ports:
+      - "127.0.0.1:${PGSQL_PORT:-5432}:5432"
+    volumes:
+      - pgsql_data:/var/lib/postgresql
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+      # Тот же bind-mount, что prod, для локального прогона `make db:backup`.
+      - ./storage/backups:/backups
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - agelto_network
+
+  redis:
+    image: redis:8.12-alpine@sha256:5af80107c1eeecb484a2269b80a26d12bfa6521787da4663bd9f19f60a163483
+    restart: unless-stopped
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+      - ./docker/redis/entrypoint.sh:/usr/local/bin/agelto-redis-entrypoint:ro
+    secrets:
+      - redis_acl
+    entrypoint: ["/usr/local/bin/agelto-redis-entrypoint"]
+    command: ["redis-server", "--aclfile", "/run/secrets/redis_acl"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "--user", "health", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - agelto_network
+
+  minio:
+    image: pgsty/silo:RELEASE.2026-11-12T00-00-00Z@sha256:c20d112390b9a9ce8c11b8af95ad35bcaa62f4759663c09c936cd8d2b511f329
+    restart: unless-stopped
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    command: ["server", "/data", "--console-address", ":9001"]
+    ports:
+      - "127.0.0.1:${MINIO_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-agelto}
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+    secrets:
+      - minio_root_password
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - agelto_network
+
+  # Задел под Фазу 8 (research/tz-v2/playwright-service.md): будущий Node+Playwright
+  # рендер-сервис для площадок с клиентским рендерингом. Для ЕИС HTTP-first достаточен
+  # (см. 02-crawling.md) — сервис НЕ на критическом пути, здесь только пустой контейнер.
+  browser:
+    image: node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5
+    restart: unless-stopped
+    command: ["tail", "-f", "/dev/null"]
+    networks:
+      - agelto_network
+
+networks:
+  agelto_network:
+    driver: bridge
+
+volumes:
+  pgsql_data:
+  redis_data:
+  minio_data:
+  app_bootstrap_cache:
+  app_storage_framework:
+  app_pest_tia:
+  vite_node_modules:
+  vite_pnpm_store:
+
+secrets:
+  app_key:
+    file: ./local/secrets/app_key
+  proxyma_wire_digest_key:
+    file: ./local/secrets/proxyma_wire_digest_key
+  db_password:
+    file: ./local/secrets/db_password
+  redis_password:
+    file: ./local/secrets/redis_password
+  redis_acl:
+    file: ./local/secrets/redis_acl
+  minio_root_password:
+    file: ./local/secrets/minio_root_password
+  minio_app_password:
+    file: ./local/secrets/minio_app_password

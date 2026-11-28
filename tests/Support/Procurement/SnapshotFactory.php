@@ -1,0 +1,38 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Support\Procurement;
+
+use App\Dto\Platforms\Eis\EisDetailExtension;
+use App\Dto\Procurement\ProcurementSnapshotData;
+use App\Models\Procurement\Platform\Registry;
+use App\Services\Procurement\Acquisition\Detail\IdentityResolver;
+use Illuminate\Support\Carbon;
+
+/**
+ * Тестовый билдер `ProcurementSnapshotData` для сценариев §11, гоняемых через
+ * `ProcurementIngestProcessor` (Discovery/Revision/StatusMapping).
+ */
+final class SnapshotFactory
+{
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    public static function make(Registry $registry, array $overrides = []): ProcurementSnapshotData
+    {
+        return new ProcurementSnapshotData(
+            registryId: $registry->id,
+            identity: app(IdentityResolver::class)->forRegistry($registry->id, $overrides['registryNumber'] ?? '0173100000123000001')->source,
+            title: $overrides['title'] ?? 'Поставка бумаги офисной',
+            sourceStage: $overrides['sourceStage'] ?? 'Подача заявок',
+            publishedAt: $overrides['publishedAt'] ?? Carbon::parse('2026-01-10 10:00:00'),
+            sourceUpdatedAt: $overrides['sourceUpdatedAt'] ?? Carbon::parse('2026-01-10 10:00:00'),
+            extension: isset($overrides['etpNumber']) ? new EisDetailExtension(etpNumber: $overrides['etpNumber']) : null,
+            initialPrice: $overrides['initialPrice'] ?? '150000.00',
+            biddingStartsAt: $overrides['biddingStartsAt'] ?? null,
+            biddingEndsAt: $overrides['biddingEndsAt'] ?? null,
+            summaryAt: $overrides['summaryAt'] ?? null,
+        );
+    }
+}

@@ -1,0 +1,90 @@
+name: Coverage shard equivalence
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/coverage-shards.yml'
+      - 'docker/scripts/collect-release-quality-evidence.sh'
+      - 'docker/scripts/release-quality-groups.py'
+      - 'docker/scripts/merge-coverage-shards.py'
+      - 'docker/scripts/compare-coverage-shards.py'
+      - 'docker/tests/process-core/rig.py'
+      - 'docker/tests/process-core/test_*coverage_shards.py'
+      - 'phpunit.xml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: coverage-shards-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  samples:
+    name: Coverage equivalence (${{ matrix.group }})
+    runs-on: ubuntu-26.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [coverage, coverage-1, coverage-2, coverage-3, coverage-4]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-core-test
+      - name: Run full or isolated sharded coverage
+        env:
+          PROCESS_CORE_RELEASE_GROUP: ${{ matrix.group }}
+        run: make core-test-release-sample
+      - name: Stage evidence
+        shell: bash
+        env:
+          RELEASE_GROUP: ${{ matrix.group }}
+        run: |
+          python3 - <<'PY'
+          import os, shutil
+          from pathlib import Path
+          group = os.environ['RELEASE_GROUP']
+          proofs = list(Path('storage/app/testing/process-core/reports').glob('*/release-quality/provenance-' + group + '.json'))
+          if len(proofs) != 1:
+              raise SystemExit(f'Expected one {group} proof, found {len(proofs)}')
+          shutil.copytree(proofs[0].parent, Path('ci-artifacts/coverage-equivalence'))
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-quality-group-${{ github.sha }}-${{ matrix.group }}
+          path: ci-artifacts/coverage-equivalence/
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: coverage-equivalence-failure-${{ github.sha }}-${{ matrix.group }}
+          path: storage/app/testing/process-core/reports/
+          if-no-files-found: warn
+          retention-days: 14
+
+  compare:
+    name: Compare full coverage with all shards
+    needs: samples
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-core-test
+      - name: Prepare the isolated schema for readiness verification
+        run: make core-test-reset
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-quality-group-${{ github.sha }}-coverage*
+          path: ci-artifacts/groups
+      - name: Compare every test and coverage statement
+        env:
+          CANDIDATE: ${{ github.sha }}
+        run: |
+          mv "ci-artifacts/groups/release-quality-group-$CANDIDATE-coverage" ci-artifacts/reference
+          python3 docker/scripts/merge-coverage-shards.py ci-artifacts/groups
+          python3 docker/scripts/compare-coverage-shards.py ci-artifacts/reference "ci-artifacts/groups/release-quality-group-$CANDIDATE-coverage"

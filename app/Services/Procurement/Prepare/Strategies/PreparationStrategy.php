@@ -1,0 +1,28 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\Procurement\Prepare\Strategies;
+
+use App\Enums\Procurement\Document\PreparationResult;
+use App\Models\Procurement\Document\Document;
+use App\Models\Procurement\Document\DocumentVersion;
+use App\Services\Procurement\Prepare\DocumentPreparer;
+
+/**
+ * Стратегия подготовки документа к скринингу/извлечению (ТЗ 03 §3.3, канон v1
+ * `Old/app/Process/DocumentPrepare/Strategies/PreparationStrategy.php`) — выбор по
+ * расширению/сигнатуре версии, реестр порядка — `config('ai.prepare.strategies')`.
+ * Стратегия не переводит документ в `prepared` — это делает WorkFinalizer после успеха.
+ *
+ * `process()` возвращает typed `PreparationResult`: `ReadyForScreening`, `ExpandedContainer` или
+ * `Unprocessable`. Терминальный `unprocessable` стратегия
+ * ставит САМА только когда исход терминален ПО СУЩЕСТВУ (zip-бомба, пароль, битый формат) —
+ * тогда {@see DocumentPreparer} останавливает цепочку по статусу документа. Упавшая с
+ * исключением стратегия НЕ маскирует сбой под `false`: исключение пробрасывается наружу,
+ * иначе диагностика прода умрёт.
+ */
+interface PreparationStrategy
+{
+    public function process(Document $document, DocumentVersion $version): PreparationResult;
+}

@@ -1,0 +1,32 @@
+{
+  "budgets_milliseconds": {
+    "coverage": 6000000,
+    "profile": 4200000,
+    "serial": 5400000
+  },
+  "coverage": {
+    "critical_files": [
+      "app/Services/Documentation/PrivateDocumentationLocator.php",
+      "app/Services/Health/ApplicationReadiness.php",
+      "app/Services/Procurement/Prepare/Archive/ArchiveEntryValidator.php",
+      "app/Services/Procurement/Proxyma/Catalog/ProfileResolver.php",
+      "bootstrap/proxyma/ProxyResolver.php",
+      "app/Repositories/Procurement/Ai/ScreeningFinalizer.php",
+      "app/Services/Procurement/Screening/ScreeningPolicy.php",
+      "app/Repositories/Procurement/Process/Work/WorkStoreRepository.php",
+      "app/Services/Procurement/Process/Execution/WorkRunner.php",
+      "app/Services/Procurement/Process/Daemons/RecoveryReconciler.php",
+      "app/Repositories/Procurement/Crawler/ListingFinalizer.php",
+      "app/Services/Llm/Execution/ReceiptStore.php",
+      "app/Services/Procurement/Extraction/Provider/AnalysisProviderSendGate.php",
+      "app/Repositories/Llm/Request/FinancialReservationRepository.php",
+      "app/Services/Procurement/Proxyma/Transport/AgeltoPhysicalHttpTransport.php",
+      "app/Services/Procurement/Network/UrlPolicy.php"
+    ],
+    "global_statement_floor": 88.22,
+    "critical_file_floor": 55
+  },
+  "random_order_seeds": [104729, 130363, 155921],
+  "selected_mode": "serial",
+  "version": 1
+}
