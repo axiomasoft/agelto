@@ -93,8 +93,10 @@ for name in ('quality', 'tests', 'faults', 'e2e'):
 for name in ('release-samples', 'load'):
     assert re.search(r'^    needs: preflight$', jobs[name], re.M), f'{name} must wait for preflight'
 assert re.search(r'^    needs: \[preflight, release-samples\]$', jobs['release-quality'], re.M)
-assert 'group: [serial, profile, coverage, random, selected]' in jobs['release-samples']
+assert 'group: [serial, profile, coverage-1, coverage-2, coverage-3, coverage-4, random, selected]' in jobs['release-samples']
 assert 'PROCESS_CORE_RELEASE_GROUP: ${{ matrix.group }}' in jobs['release-samples']
+assert './.github/actions/setup-core-test' in jobs['release-quality']
+assert 'merge-coverage-shards.py' in jobs['release-quality']
 assert 'release-quality-groups.py verify' in jobs['release-quality']
 assert 'check-release-quality.py' in jobs['release-quality']
 for step in ('ci-contract.sh', 'unittest discover -s docker/tests/process-core', 'pint --test', 'phpstan analyse'):

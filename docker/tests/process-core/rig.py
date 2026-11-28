@@ -937,7 +937,7 @@ def quality(folder):
 
 def release_group(sample):
     group = os.environ.get("PROCESS_CORE_RELEASE_GROUP", "") if sample else "all"
-    require(group in ({"serial", "profile", "coverage", "random", "selected"} if sample else {"all"}),
+    require(group in ({"serial", "profile", "coverage", "coverage-1", "coverage-2", "coverage-3", "coverage-4", "random", "selected"} if sample else {"all"}),
             "unknown release quality sample group")
     return group
 

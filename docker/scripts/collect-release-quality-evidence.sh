@@ -10,7 +10,7 @@ env_file=${ENV_FILE:-.env}
 [[ $# -le 1 ]] || { echo 'Expected at most one release-quality group' >&2; exit 64; }
 group=${1:-all}
 case "$group" in
-    all|serial|profile|coverage|random|selected) ;;
+    all|serial|profile|coverage|coverage-[1-4]|random|selected) ;;
     *) echo "Unknown release-quality group: $group" >&2; exit 64 ;;
 esac
 
@@ -36,7 +36,7 @@ run_test() {
     shift
 
     local php=(php -d memory_limit=1G)
-    if [[ "$name" == coverage ]]; then
+    if [[ "$name" == coverage || "$name" == coverage-[1-4] ]]; then
         # Coverage retains per-test execution data for the full corpus and also needs
         # bootstrap/proxyma in scope. Exclude dependency and runtime trees explicitly.
         php+=(-d memory_limit=2G -d pcov.enabled=1 -d "pcov.directory=$app_root" \
@@ -77,6 +77,10 @@ if [[ "$group" == all || "$group" == profile ]]; then
 fi
 if [[ "$group" == all || "$group" == coverage ]]; then
     run_test coverage --coverage-clover=storage/app/release-quality/coverage-clover.xml
+fi
+if [[ "$group" == coverage-[1-4] ]]; then
+    shard=${group#coverage-}
+    run_test "$group" "--shard=$shard/4" "--coverage-php=storage/app/release-quality/$group.php"
 fi
 if [[ "$group" == all || "$group" == random ]]; then
     for seed in 104729 130363 155921; do

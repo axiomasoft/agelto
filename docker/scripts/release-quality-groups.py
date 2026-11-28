@@ -17,6 +17,8 @@ GROUPS = {
     'random': [f'random-{seed}' for seed in (104729, 130363, 155921)],
     'selected': [f'selected-serial-{i}' for i in range(1, 4)],
 }
+SHARDS = {f'coverage-{i}': [f'coverage-{i}'] for i in range(1, 5)}
+WRITABLE_GROUPS = {**GROUPS, **SHARDS}
 
 
 def sha256(path):
@@ -28,7 +30,7 @@ def candidate():
 
 
 def validate_samples(group, directory):
-    for sample in GROUPS[group]:
+    for sample in WRITABLE_GROUPS[group]:
         duration = int((directory / f'{sample}.milliseconds').read_text().strip())
         cases = ET.parse(directory / f'{sample}.xml').getroot().findall('.//testcase')
         if (duration <= 0 or not cases or sum(int(case.get('assertions', '0')) for case in cases) <= 0
@@ -36,6 +38,8 @@ def validate_samples(group, directory):
             raise ValueError(f'{sample} has no passing executed evidence')
     if group == 'coverage' and not (directory / 'coverage-clover.xml').is_file():
         raise ValueError('coverage report missing')
+    if group in SHARDS and not (directory / f'{group}.php').is_file():
+        raise ValueError(f'{group} serialized coverage missing')
 
 
 def write(group, directory, root):
@@ -48,7 +52,7 @@ def write(group, directory, root):
         raise ValueError('runtime candidate differs from checkout')
     proof = {
         'format': 'release-quality-group/v1', 'group': group, 'candidate': head,
-        'samples': GROUPS[group], 'dependencies': runtime['dependencies'],
+        'samples': WRITABLE_GROUPS[group], 'dependencies': runtime['dependencies'],
         'manifest_sha256': sha256(root / 'tests/Fixtures/ProcessCore/manifest.json'),
         'runtime_inputs_sha256': sha256(root / 'tests/Fixtures/ProcessCore/runtime-inputs.json'),
     }
@@ -82,7 +86,7 @@ def verify(directory, output, head, root):
 
 def main():
     root = Path.cwd()
-    if len(sys.argv) == 4 and sys.argv[1] == 'write' and sys.argv[2] in GROUPS:
+    if len(sys.argv) == 4 and sys.argv[1] == 'write' and sys.argv[2] in WRITABLE_GROUPS:
         write(sys.argv[2], Path(sys.argv[3]), root)
     elif len(sys.argv) == 4 and sys.argv[1] == 'verify':
         verify(Path(sys.argv[2]), Path(sys.argv[3]), candidate(), root)
