@@ -8,6 +8,7 @@ use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Platforms\Eis\Card\EisCardCatalog;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 /**
@@ -30,6 +31,10 @@ final class EisPlatformSeeder extends Seeder
         $platform = $this->seedPlatform();
 
         $this->seedRegistry($platform);
+
+        if (Schema::hasTable('prc_parsing_rule_sets')) {
+            $this->call(EisParsingRulesSeeder::class);
+        }
     }
 
     private function seedRegistry(Platform $platform): void

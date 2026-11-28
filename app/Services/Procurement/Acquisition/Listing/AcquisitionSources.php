@@ -10,6 +10,7 @@ use App\Dto\Procurement\Acquisition\Fetch\FetchItemRejected;
 use App\Dto\Procurement\Acquisition\Listing\ListingFetchResult;
 use App\Dto\Procurement\Acquisition\Listing\ListingRequest;
 use App\Dto\Procurement\Network\Control\OutboundExecutionContext;
+use App\Dto\Procurement\Parsing\Extraction\ResolvedParsingRuleSet;
 use App\Dto\Procurement\Platform\Capabilities\SupportedDetailCapability;
 use App\Dto\Procurement\Platform\Capabilities\SupportedListingCapability;
 use App\Dto\Procurement\Platform\Capabilities\SupportedStatusCapability;
@@ -31,12 +32,17 @@ final class AcquisitionSources
         SupportedListingCapability|SupportedDetailCapability|SupportedStatusCapability $capability,
         PlatformOutbound $outbound,
         ProcessUuid $targetId,
+        ?ResolvedParsingRuleSet $ruleSet = null,
     ): ListingSource|DetailSource|StatusSource {
         // Propagate request dependencies through adapter-private helpers without changing the worker container.
         $container = clone app();
         $container->instance(PlatformDefinition::class, $definition);
         $container->instance(PlatformOutbound::class, $outbound);
         $container->instance(ProcessUuid::class, $targetId);
+        if ($ruleSet !== null) {
+            $container->instance(ResolvedParsingRuleSet::class, $ruleSet);
+            $container->instance($ruleSet->rules::class, $ruleSet->rules);
+        }
         $source = $container->make($capability->implementation);
         if (! $source instanceof ListingSource && ! $source instanceof DetailSource && ! $source instanceof StatusSource) {
             throw new \LogicException('Invalid acquisition source binding.');

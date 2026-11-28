@@ -1,0 +1,282 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Procurement Detail Parsing Rule Set v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format"
+  ],
+  "properties": {
+    "format": {
+      "type": "string",
+      "enum": ["html", "json"]
+    },
+    "routes": {
+      "anyOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/cardRoutesRule" }
+      ]
+    },
+    "envelope": {
+      "anyOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/cardEnvelopeRule" }
+      ]
+    },
+    "dom": {
+      "anyOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/cardDomRule" }
+      ]
+    },
+    "common_info": {
+      "anyOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/commonInfoRule" }
+      ]
+    },
+    "parties": {
+      "anyOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/partiesRule" }
+      ]
+    },
+    "documents": {
+      "anyOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/documentsRule" }
+      ]
+    },
+    "event_journal": {
+      "anyOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/eventJournalRule" }
+      ]
+    },
+    "supplier_results": {
+      "anyOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/supplierResultsRule" }
+      ]
+    },
+    "json_detail": {
+      "anyOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/jsonDetailRule" }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "format": { "const": "json" } }
+      },
+      "then": {
+        "required": ["json_detail"],
+        "properties": {
+          "json_detail": { "$ref": "#/$defs/jsonDetailRule" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "cssSelector": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "selectorChain": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/cssSelector" }
+    },
+    "nullableSelectorChain": {
+      "anyOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/selectorChain" }
+      ]
+    },
+    "regexPattern": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 512
+    },
+    "nullableRegexPattern": {
+      "anyOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/regexPattern" }
+      ]
+    },
+    "nullableString": {
+      "anyOf": [
+        { "type": "null" },
+        { "type": "string", "minLength": 1 }
+      ]
+    },
+    "stringList": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "stringMap": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
+    "dateParsingRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["formats"],
+      "properties": {
+        "formats": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "timezone": { "type": "string", "minLength": 1 },
+        "extract_regex": { "$ref": "#/$defs/nullableRegexPattern" }
+      }
+    },
+    "cardRoutesRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "common_info_path": { "$ref": "#/$defs/nullableString" },
+        "documents_path": { "$ref": "#/$defs/nullableString" },
+        "journal_path": { "$ref": "#/$defs/nullableString" },
+        "supplier_results_path": { "$ref": "#/$defs/nullableString" },
+        "lot_path": { "$ref": "#/$defs/nullableString" }
+      }
+    },
+    "cardEnvelopeRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "number_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "status_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "price_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "currency_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "law_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "not_found_markers": { "$ref": "#/$defs/stringList" }
+      }
+    },
+    "cardDomRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "section_selectors": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/selectorChain" }
+        },
+        "field_rows_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "label_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "value_selectors": { "$ref": "#/$defs/nullableSelectorChain" }
+      }
+    },
+    "commonInfoRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "field_aliases": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/stringList" }
+        },
+        "date_fields": { "$ref": "#/$defs/stringList" },
+        "money_fields": { "$ref": "#/$defs/stringList" },
+        "date_parsing": {
+          "anyOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/dateParsingRule" }
+          ]
+        }
+      }
+    },
+    "partiesRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "customer_section_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "customer_name_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "customer_inn_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "customer_kpp_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "customer_ogrn_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "inn_regex": { "$ref": "#/$defs/nullableRegexPattern" },
+        "kpp_regex": { "$ref": "#/$defs/nullableRegexPattern" },
+        "ogrn_regex": { "$ref": "#/$defs/nullableRegexPattern" }
+      }
+    },
+    "documentsRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "container_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "item_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "title_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "url_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "hash_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "size_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "published_at_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "allowed_extensions": { "$ref": "#/$defs/stringList" }
+      }
+    },
+    "eventClassificationRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event_type"],
+      "properties": {
+        "event_type": { "type": "string", "minLength": 1 },
+        "keywords": { "$ref": "#/$defs/stringList" },
+        "pattern": { "$ref": "#/$defs/nullableRegexPattern" },
+        "priority": { "type": "integer" }
+      }
+    },
+    "eventJournalRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "row_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "date_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "description_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "classifications": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/eventClassificationRule" }
+        },
+        "date_parsing": {
+          "anyOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/dateParsingRule" }
+          ]
+        }
+      }
+    },
+    "supplierResultsRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "container_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "participant_row_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "name_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "inn_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "price_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "status_selectors": { "$ref": "#/$defs/nullableSelectorChain" },
+        "winner_markers": { "$ref": "#/$defs/stringList" }
+      }
+    },
+    "jsonDetailRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field_paths"],
+      "properties": {
+        "root_path": { "$ref": "#/$defs/nullableString" },
+        "field_paths": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "type": "string", "minLength": 1 }
+        },
+        "documents_path": { "$ref": "#/$defs/nullableString" },
+        "document_field_paths": { "$ref": "#/$defs/stringMap" },
+        "events_path": { "$ref": "#/$defs/nullableString" },
+        "event_field_paths": { "$ref": "#/$defs/stringMap" }
+      }
+    }
+  }
+}

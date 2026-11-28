@@ -11,6 +11,9 @@ use App\Dto\Procurement\Acquisition\Detail\DetailResult;
 use App\Dto\Procurement\Acquisition\Detail\ProcurementSnapshot;
 use App\Dto\Procurement\Details\CommonInfoData;
 use App\Dto\Procurement\Details\CommonInfoSnapshot;
+use App\Dto\Procurement\Parsing\Primitives\EventClassificationRule;
+use App\Dto\Procurement\Parsing\Rules\DetailRuleSetDto;
+use App\Dto\Procurement\Platform\Identity\SourceIdentity;
 use App\Dto\Procurement\Process\Inputs\DetailInput;
 use App\Dto\Procurement\Process\Inputs\WorkInput;
 use App\Dto\Procurement\Process\Outcomes\StageCheckpoint;
@@ -19,7 +22,10 @@ use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Dto\Procurement\Process\Primitives\WorkId;
 use App\Enums\Procurement\DetailSnapshotStatus;
 use App\Enums\Procurement\Platform\Completeness;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Enums\Procurement\Process\Outcomes\BlockedReason;
+use App\Exceptions\Procurement\Parsing\ParsingRuleSetDisabledException;
+use App\Exceptions\Procurement\Parsing\ParsingRuleSetUnavailableException;
 use App\Exceptions\Procurement\Process\PublicationBlocked;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\Document\DocumentCatalogRepository;
@@ -35,6 +41,7 @@ use App\Services\Procurement\Acquisition\Status\UnmappedStatusReporter;
 use App\Services\Procurement\Detail\CommonInfoProcessor;
 use App\Services\Procurement\Detail\EventJournalProcessor;
 use App\Services\Procurement\Detail\SupplierResultsProcessor;
+use App\Services\Procurement\Parsing\ParsingRuleSetResolver;
 use App\Services\Procurement\Process\Contracts\PublicationLocks;
 use App\Services\Procurement\Process\Contracts\StagePublicationPreparation;
 use App\Services\Procurement\Process\Contracts\StagePublicationRepository;
@@ -62,7 +69,8 @@ final readonly class DetailFinalizer implements StagePublicationPreparation, Sta
             throw new PublicationBlocked(BlockedReason::PolicyReview);
         }
         if (isset($complete['events'])) {
-            $this->events->ensurePartitions($snapshot->events);
+            $patterns = $this->resolveEventPatterns($snapshot->identity);
+            $this->events->ensurePartitions($snapshot->events, $patterns);
         }
         if ($results !== null) {
             $this->results->ensurePartitions(data: $results, observedAt: Carbon::instance($result->observedAt));
@@ -120,7 +128,8 @@ final readonly class DetailFinalizer implements StagePublicationPreparation, Sta
         $this->common->process($p, new CommonInfoSnapshot(isset($complete['attributes']) ? DetailSnapshotStatus::Complete : DetailSnapshotStatus::Incomplete,
             new CommonInfoData(extension: $s->extension, financingRows: $s->financing, items: $s->items), $s->parties, isset($complete['parties'])));
         if (isset($complete['events'])) {
-            $this->events->storePrepared(procurement: $p, entries: $s->events);
+            $patterns = $this->resolveEventPatterns($s->identity, $p->id);
+            $this->events->storePrepared(procurement: $p, entries: $s->events, patterns: $patterns);
         }
         if ($s->results !== null && isset($complete['results'])) {
             $this->results->storePrepared(procurement: $p, data: $s->results, observedAt: $observedAt);
@@ -161,5 +170,57 @@ final readonly class DetailFinalizer implements StagePublicationPreparation, Sta
         }
 
         return $complete;
+    }
+
+    /**
+     * @return list<EventClassificationRule>|null
+     */
+    private function resolveEventPatterns(SourceIdentity $identity, ?int $procurementId = null): ?array
+    {
+        $row = $procurementId !== null
+            ? LedgerRow::one(
+                'SELECT p.platform_id, pl.code AS platform_code, r.code AS registry_code
+                 FROM prc_procurements p
+                 JOIN prc_platforms pl ON pl.id = p.platform_id
+                 LEFT JOIN prc_registries r ON r.id = p.registry_id
+                 WHERE p.id = ?',
+                [$procurementId],
+            )
+            : LedgerRow::one(
+                'SELECT p.platform_id, pl.code AS platform_code, r.code AS registry_code
+                 FROM prc_procurements p
+                 JOIN prc_platforms pl ON pl.id = p.platform_id
+                 LEFT JOIN prc_registries r ON r.id = p.registry_id
+                 WHERE pl.code = ? AND p.source_identity_type = ? AND p.source_identity_value = ?
+                 LIMIT 1',
+                [$identity->platform->value, $identity->type->value, $identity->value->value],
+            );
+
+        $platformId = $row?->int('platform_id');
+        $platformCode = $row?->string('platform_code') ?? $identity->platform->value;
+        $registryCode = $row?->nullableString('registry_code');
+
+        if ($platformId === null) {
+            $platformRow = LedgerRow::one('SELECT id FROM prc_platforms WHERE code = ?', [$platformCode]);
+            if ($platformRow === null) {
+                return null;
+            }
+            $platformId = $platformRow->int('id');
+        }
+
+        try {
+            $resolved = app(ParsingRuleSetResolver::class)->resolveForPlatformId(
+                platformId: $platformId,
+                platformCode: $platformCode,
+                stage: StageCode::Detail,
+                registryCode: $registryCode,
+            );
+
+            $rules = $resolved?->rules;
+
+            return $rules instanceof DetailRuleSetDto ? $rules->eventJournal?->classifications : null;
+        } catch (ParsingRuleSetDisabledException|ParsingRuleSetUnavailableException) {
+            return null;
+        }
     }
 }

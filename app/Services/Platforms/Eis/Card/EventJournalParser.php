@@ -5,8 +5,15 @@ declare(strict_types=1);
 namespace App\Services\Platforms\Eis\Card;
 
 use App\Dto\Procurement\Details\JournalEntryData;
+use App\Dto\Procurement\Parsing\Extraction\DriftSignal;
+use App\Dto\Procurement\Parsing\Primitives\SelectorChain;
+use App\Dto\Procurement\Parsing\Rules\DetailRuleSetDto;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Enums\Procurement\ProcurementEventType;
+use App\Services\Platforms\Eis\EisDefaultParsingRules;
 use App\Services\Platforms\Eis\EisSourceClock;
+use App\Services\Procurement\Platform\Contracts\DriftCollector;
+use App\Services\Procurement\Platform\Contracts\EventTableExtractor;
 use Illuminate\Support\Carbon;
 use Symfony\Component\DomCrawler\Crawler;
 
@@ -20,7 +27,12 @@ use Symfony\Component\DomCrawler\Crawler;
  */
 final readonly class EventJournalParser
 {
-    public function __construct(private EisSourceClock $clock = new EisSourceClock) {}
+    public function __construct(
+        private EisSourceClock $clock = new EisSourceClock,
+        private ?DetailRuleSetDto $rules = null,
+        private ?EventTableExtractor $extractor = null,
+        private ?DriftCollector $drift = null,
+    ) {}
 
     /**
      * @return list<JournalEntryData>
@@ -28,24 +40,38 @@ final readonly class EventJournalParser
     public function parse(string $html, bool $strict = false): array
     {
         try {
+            $rules = $this->rules ?? EisDefaultParsingRules::detail();
             $crawler = new Crawler($html);
-            $table = $crawler->filter('table#event');
-
-            if ($table->count() === 0) {
-                $this->warnIfJournalEvidenceSuppressed($crawler, recognized: 0);
-
-                return [];
-            }
-
+            $journalRule = $rules->eventJournal;
             $entries = [];
 
-            $table->filter('tbody tr')->each(function (Crawler $tr) use (&$entries): void {
-                $entry = $this->parseRow($tr);
-
-                if ($entry !== null) {
-                    $entries[] = $entry;
+            if ($this->extractor !== null && $journalRule !== null && $journalRule->rowSelectors !== null && $journalRule->descriptionSelectors !== null) {
+                $dom = new \DOMDocument;
+                @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
+                $extracted = $this->extractor->extract(new \DOMXPath($dom), $journalRule);
+                foreach ($extracted as $item) {
+                    $occurredAt = $item['date'] !== null ? $this->parseDate($item['date']) : null;
+                    $text = trim($item['description']);
+                    if ($occurredAt !== null && $text !== '') {
+                        $entries[] = new JournalEntryData(occurredAt: $occurredAt, rawText: $text);
+                    }
                 }
-            });
+            } else {
+                $rows = $this->firstMatching($crawler, $journalRule?->rowSelectors, 'table#event tbody tr');
+                if ($rows->count() > 0) {
+                    $rows->each(function (Crawler $tr) use (&$entries, $journalRule): void {
+                        $entry = $this->parseRow($tr, $journalRule?->dateSelectors, $journalRule?->descriptionSelectors);
+
+                        if ($entry !== null) {
+                            $entries[] = $entry;
+                        }
+                    });
+                }
+            }
+
+            if ($entries === [] && $crawler->filter('table#event')->count() === 0) {
+                $this->drift?->record(new DriftSignal('event_journal_table_missing', StageCode::Detail, 'table#event'));
+            }
 
             $this->warnIfJournalEvidenceSuppressed($crawler, recognized: count($entries));
 
@@ -62,25 +88,43 @@ final readonly class EventJournalParser
         }
     }
 
-    private function parseRow(Crawler $tr): ?JournalEntryData
+    private function firstMatching(Crawler $crawler, ?SelectorChain $chain, string $defaultSelector): Crawler
     {
-        $cells = $tr->filter('td');
+        if ($chain !== null) {
+            foreach ($chain->selectors as $selector) {
+                $matched = $crawler->filter($selector->selector);
+                if ($matched->count() > 0) {
+                    return $matched;
+                }
+            }
 
-        if ($cells->count() < 2) {
+            return new Crawler;
+        }
+
+        return $crawler->filter($defaultSelector);
+    }
+
+    private function parseRow(Crawler $tr, ?SelectorChain $dateSelectors = null, ?SelectorChain $descriptionSelectors = null): ?JournalEntryData
+    {
+        $dateNode = $dateSelectors !== null ? $this->firstMatching($tr, $dateSelectors, 'td:nth-child(1)') : $tr->filter('td')->eq(0);
+        $textNode = $descriptionSelectors !== null ? $this->firstMatching($tr, $descriptionSelectors, 'td:nth-child(2)') : $tr->filter('td')->eq(1);
+
+        if ($dateNode->count() === 0 || $textNode->count() === 0) {
             return null;
         }
 
-        $occurredAt = $this->parseDate(trim($cells->eq(0)->text()));
+        $rawDate = trim($dateNode->text());
+        $occurredAt = $this->parseDate($rawDate);
 
         if ($occurredAt === null) {
             CardDomHelper::logWarning('Строка вкладки event-journal с нераспознаваемой датой пропущена', [
-                'date' => trim($cells->eq(0)->text()),
+                'date' => $rawDate,
             ]);
 
             return null;
         }
 
-        $text = trim($cells->eq(1)->text());
+        $text = trim($textNode->text());
 
         if ($text === '') {
             return null;

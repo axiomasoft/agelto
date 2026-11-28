@@ -8,6 +8,7 @@ use App\Dto\Procurement\Details\CommonInfoSnapshot;
 use App\Dto\Procurement\Details\DocumentsSnapshot;
 use App\Dto\Procurement\Details\JournalEntryData;
 use App\Dto\Procurement\Details\SupplierResultsData;
+use App\Dto\Procurement\Parsing\Rules\DetailRuleSetDto;
 
 final readonly class EisDetailParser
 {
@@ -17,7 +18,13 @@ final readonly class EisDetailParser
         private DocumentsParser $documentsParser,
         private EventJournalParser $journal,
         private SupplierResultsParser $results,
+        private ?DetailRuleSetDto $rules = null,
     ) {}
+
+    public function rules(): ?DetailRuleSetDto
+    {
+        return $this->rules;
+    }
 
     public function commonInfo(string $html, bool $strict = false): CommonInfoSnapshot
     {

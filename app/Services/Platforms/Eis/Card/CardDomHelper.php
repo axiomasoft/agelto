@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Platforms\Eis\Card;
 
+use App\Dto\Procurement\Parsing\Rules\CardDomRule;
 use App\Enums\Telemetry\LogChannel;
 use Symfony\Component\DomCrawler\Crawler;
 
@@ -17,36 +18,47 @@ final readonly class CardDomHelper
         LogChannel::Platforms->warning($message, $context);
     }
 
-    public static function titleSection(Crawler $crawler, string $term): ?Crawler
+    public static function titleSection(Crawler $crawler, string $term, ?CardDomRule $rule = null): ?Crawler
     {
+        $labelSelectors = $rule?->labelSelectors !== null ? $rule->labelSelectors->selectors : ['span.section__title'];
         try {
-            $title = $crawler
-                ->filter('span.section__title')
-                ->reduce(static fn (Crawler $span): bool => trim($span->text()) === $term);
+            foreach ($labelSelectors as $selector) {
+                $selectorStr = is_string($selector) ? $selector : $selector->selector;
+                $title = $crawler
+                    ->filter($selectorStr)
+                    ->reduce(static fn (Crawler $span): bool => trim($span->text()) === $term);
 
-            if ($title->count() === 0) {
-                return null;
+                if ($title->count() > 0) {
+                    $section = $title->ancestors()->first();
+
+                    return $section->count() > 0 ? $section : null;
+                }
             }
 
-            $section = $title->ancestors()->first();
-
-            return $section->count() > 0 ? $section : null;
+            return null;
         } catch (\Throwable) {
             return null;
         }
     }
 
-    public static function infoNode(Crawler $section): ?Crawler
+    public static function infoNode(Crawler $section, ?CardDomRule $rule = null): ?Crawler
     {
-        $info = $section->filter('span.section__info')->first();
+        $valueSelectors = $rule?->valueSelectors !== null ? $rule->valueSelectors->selectors : ['span.section__info'];
+        foreach ($valueSelectors as $selector) {
+            $selectorStr = is_string($selector) ? $selector : $selector->selector;
+            $info = $section->filter($selectorStr)->first();
+            if ($info->count() > 0) {
+                return $info;
+            }
+        }
 
-        return $info->count() > 0 ? $info : null;
+        return null;
     }
 
-    public static function readDefinitionValue(Crawler $crawler, string $term): ?string
+    public static function readDefinitionValue(Crawler $crawler, string $term, ?CardDomRule $rule = null): ?string
     {
-        $section = self::titleSection($crawler, $term);
-        $info = $section !== null ? self::infoNode($section) : null;
+        $section = self::titleSection($crawler, $term, $rule);
+        $info = $section !== null ? self::infoNode($section, $rule) : null;
 
         if ($info === null) {
             return null;
@@ -57,10 +69,10 @@ final readonly class CardDomHelper
         return $value !== '' ? $value : null;
     }
 
-    public static function readDefinitionLink(Crawler $crawler, string $term): ?string
+    public static function readDefinitionLink(Crawler $crawler, string $term, ?CardDomRule $rule = null): ?string
     {
-        $section = self::titleSection($crawler, $term);
-        $info = $section !== null ? self::infoNode($section) : null;
+        $section = self::titleSection($crawler, $term, $rule);
+        $info = $section !== null ? self::infoNode($section, $rule) : null;
         $link = $info?->filter('a');
 
         return $link !== null && $link->count() > 0 ? $link->attr('href') : null;

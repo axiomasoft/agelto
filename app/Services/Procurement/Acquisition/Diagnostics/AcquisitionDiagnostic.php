@@ -23,6 +23,7 @@ use App\Enums\Procurement\Network\AdapterVerdict;
 use App\Enums\Procurement\Network\OutboundOperationKind;
 use App\Enums\Procurement\Platform\Completeness;
 use App\Enums\Procurement\Platform\FailureScope;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Exceptions\Procurement\Network\OutboundOwnershipLost;
 use App\Exceptions\Procurement\Network\OutboundUnavailable;
 use App\Exceptions\Procurement\Process\ExecutionInterrupted;
@@ -34,6 +35,7 @@ use App\Services\Procurement\Acquisition\Listing\AcquisitionSources;
 use App\Services\Procurement\Acquisition\Orchestration\AcquisitionArtifacts;
 use App\Services\Procurement\Acquisition\Orchestration\AcquisitionPlatformOutbound;
 use App\Services\Procurement\Network\UrlPolicy;
+use App\Services\Procurement\Parsing\ParsingRuleSetResolver;
 use App\Services\Procurement\Platform\Contracts\DetailSource;
 use App\Services\Procurement\Platform\Contracts\ListingSource;
 use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
@@ -83,11 +85,19 @@ final readonly class AcquisitionDiagnostic
             $gate = app()->makeWith(CallerGate::class, ['routes' => $selector]);
             $outbound = new AcquisitionPlatformOutbound($this->executor, $gate, $urls ?? $this->urls ?? new UrlPolicy($definition->sourceTargets->origins()),
                 new TransferBudget(134217728, 134217728), $owner, $owner, $this->artifacts);
+            $stage = $request instanceof ListingRequest ? StageCode::Listing : StageCode::Detail;
+            $ruleSet = app(ParsingRuleSetResolver::class)->resolveForPlatformId(
+                platformId: $platformId,
+                platformCode: $definition->code->value,
+                stage: $stage,
+                registryCode: $request->registry,
+            );
             $source = AcquisitionSources::resolve(
                 definition: $definition,
                 capability: $capability,
                 outbound: $outbound,
                 targetId: $targetId,
+                ruleSet: $ruleSet,
             );
             if (($request instanceof ListingRequest && ! $source instanceof ListingSource)
                 || ($request instanceof DetailRequest && ! $source instanceof DetailSource)) {

@@ -11,7 +11,8 @@ use App\Enums\Procurement\Process\Core\StageCode;
 final readonly class ListingResult implements ValidatedStageResult
 {
     public function __construct(public ListingTask $task, public ListingPage $page, public ?PartitionResult $split = null,
-        public \DateTimeImmutable $observedAt = new \DateTimeImmutable('now', new \DateTimeZone('UTC')))
+        public \DateTimeImmutable $observedAt = new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
+        public ?string $activeRulesHash = null)
     {
         $overflow = in_array($page->assessment->reason, [AssessmentReason::Overflow, AssessmentReason::RepeatedPage], true);
         if ((! $page->assessment->usable() && ! $overflow) || ($overflow !== ($split !== null))) {

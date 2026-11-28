@@ -13,6 +13,7 @@ use App\Guards\Admin\Permissions\EstimatePermission;
 use App\Guards\Admin\Permissions\FixturePermission;
 use App\Guards\Admin\Permissions\IncidentPermission;
 use App\Guards\Admin\Permissions\OperationLogPermission;
+use App\Guards\Admin\Permissions\ParsingRuleSetPermission;
 use App\Guards\Admin\Permissions\PlatformCheckPermission;
 use App\Guards\Admin\Permissions\PlatformPermission;
 use App\Guards\Admin\Permissions\ProcessControlPermission;
@@ -95,6 +96,11 @@ final class OperatorRole extends BaseRole
             // История healthcheck: только чтение — витрина не меняет ни ожидания, ни факт.
             PlatformCheckPermission::ViewAny,
             PlatformCheckPermission::View,
+            // Правила парсинга: оператор может просматривать и создавать черновики,
+            // но не может менять режим, активировать, откатывать или запускать auto-heal.
+            ParsingRuleSetPermission::ViewAny,
+            ParsingRuleSetPermission::View,
+            ParsingRuleSetPermission::Create,
             ProcessControlPermission::ValidateAdapter,
             ProcessControlPermission::LaunchRun,
             ProcessControlPermission::RetryFailedItem,

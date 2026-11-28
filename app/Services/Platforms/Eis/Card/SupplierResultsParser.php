@@ -9,10 +9,17 @@ use App\Dto\Procurement\Details\BidData;
 use App\Dto\Procurement\Details\OrganizationData;
 use App\Dto\Procurement\Details\ProtocolData;
 use App\Dto\Procurement\Details\SupplierResultsData;
+use App\Dto\Procurement\Parsing\Extraction\DriftSignal;
+use App\Dto\Procurement\Parsing\Primitives\SelectorChain;
+use App\Dto\Procurement\Parsing\Rules\DetailRuleSetDto;
 use App\Enums\Procurement\AwardStatus;
 use App\Enums\Procurement\BidStatus;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Enums\Procurement\ProtocolType;
+use App\Services\Platforms\Eis\EisDefaultParsingRules;
 use App\Services\Platforms\Eis\EisSourceClock;
+use App\Services\Procurement\Platform\Contracts\DomExtractor;
+use App\Services\Procurement\Platform\Contracts\DriftCollector;
 use Illuminate\Support\Carbon;
 use Symfony\Component\DomCrawler\Crawler;
 
@@ -28,7 +35,13 @@ use Symfony\Component\DomCrawler\Crawler;
  */
 final readonly class SupplierResultsParser
 {
-    public function __construct(private EisSourceClock $clock = new EisSourceClock) {}
+    /** @phpstan-ignore constructor.unusedParameter */
+    public function __construct(
+        private EisSourceClock $clock = new EisSourceClock,
+        private ?DetailRuleSetDto $rules = null,
+        ?DomExtractor $dom = null,
+        private ?DriftCollector $drift = null,
+    ) {}
 
     private const string TERM_PROTOCOL = 'Наименование протокола определения поставщика (подрядчика, исполнителя)';
 
@@ -37,24 +50,21 @@ final readonly class SupplierResultsParser
     /**
      * @var array<string, ProtocolType>
      */
-    private const array PROTOCOL_TYPE_MAP = [
-        'рассмотрения первых частей' => ProtocolType::FirstPartsReview,
-        'рассмотрения вторых частей' => ProtocolType::SecondPartsReview,
-        'проведения аукциона' => ProtocolType::Auction,
-        'оценки' => ProtocolType::Evaluation,
-        'подведения итогов' => ProtocolType::Summary,
-        'о признании закупки несостоявшейся' => ProtocolType::Failed,
-        'обоснования выбора единственного поставщика' => ProtocolType::SingleSupplierJustification,
-    ];
+    private const array PROTOCOL_TYPE_MAP = EisDefaultParsingRules::PROTOCOL_TYPE_MAP;
 
     public function parse(string $html, bool $strict = false): SupplierResultsData
     {
         try {
+            $rules = $this->rules ?? EisDefaultParsingRules::detail();
             $crawler = new Crawler($html);
-            $protocol = $this->parseProtocol(CardDomHelper::readDefinitionValue($crawler, self::TERM_PROTOCOL));
-            $bids = $this->parseBids($crawler);
-            $formedAt = $this->parseDateTime(CardDomHelper::readDefinitionValue($crawler, self::TERM_FORMED_AT));
+            $protocol = $this->parseProtocol(CardDomHelper::readDefinitionValue($crawler, self::TERM_PROTOCOL, $rules->dom));
+            $bids = $this->parseBids($crawler, $rules);
+            $formedAt = $this->parseDateTime(CardDomHelper::readDefinitionValue($crawler, self::TERM_FORMED_AT, $rules->dom));
             $award = $this->buildAward($bids, $protocol, $formedAt);
+
+            if ($protocol === null && $bids === []) {
+                $this->drift?->record(new DriftSignal('supplier_results_empty', StageCode::Detail, 'supplier-def-result-participant-table'));
+            }
 
             $this->warnIfBlockInfoSuppressed($crawler, $protocol, $bids);
 
@@ -117,12 +127,14 @@ final readonly class SupplierResultsParser
     /**
      * @return list<BidData>
      */
-    private function parseBids(Crawler $crawler): array
+    private function parseBids(Crawler $crawler, DetailRuleSetDto $rules): array
     {
         $bids = [];
-        $crawler->filter('div[id^="supplier-def-result-participant-table-"] table.tableBlock')->each(function (Crawler $table) use (&$bids): void {
+        $tables = $this->firstMatching($crawler, $rules->supplierResults?->containerSelectors, 'div[id^="supplier-def-result-participant-table-"] table.tableBlock');
+        $tables->each(function (Crawler $table) use (&$bids, $rules): void {
             $columns = $this->bidColumns($table);
-            $table->children('tbody')->children('tr')->each(function (Crawler $row) use ($columns, &$bids): void {
+            $rows = $this->firstMatching($table, $rules->supplierResults?->participantRowSelectors, 'tbody > tr');
+            $rows->each(function (Crawler $row) use ($columns, &$bids): void {
                 $bid = $this->parseBidRow(row: $row, columns: $columns);
                 if ($bid !== null) {
                     $bids[] = $bid;
@@ -131,6 +143,22 @@ final readonly class SupplierResultsParser
         });
 
         return $bids;
+    }
+
+    private function firstMatching(Crawler $crawler, ?SelectorChain $chain, string $defaultSelector): Crawler
+    {
+        if ($chain !== null) {
+            foreach ($chain->selectors as $selector) {
+                $matched = $crawler->filter($selector->selector);
+                if ($matched->count() > 0) {
+                    return $matched;
+                }
+            }
+
+            return new Crawler;
+        }
+
+        return $crawler->filter($defaultSelector);
     }
 
     /** @return array<string, int> */

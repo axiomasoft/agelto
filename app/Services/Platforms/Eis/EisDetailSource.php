@@ -28,6 +28,8 @@ use App\Dto\Procurement\Network\Http\SafeUrl;
 use App\Dto\Procurement\Network\Outcome\TransportBlocked;
 use App\Dto\Procurement\Network\Outcome\TransportDeferred;
 use App\Dto\Procurement\Network\Outcome\TransportSucceeded;
+use App\Dto\Procurement\Parsing\Primitives\SelectorChain;
+use App\Dto\Procurement\Parsing\Rules\DetailRuleSetDto;
 use App\Dto\Procurement\Platform\Diagnostics\ResponseAssessment;
 use App\Dto\Procurement\Process\Execution\ExecutionContext;
 use App\Dto\Procurement\Process\Primitives\ContentHash;
@@ -44,6 +46,7 @@ use App\Enums\Procurement\ProtocolType;
 use App\Services\Platforms\Eis\Card\CardDomHelper;
 use App\Services\Platforms\Eis\Card\EisDetailParser;
 use App\Services\Procurement\Platform\Contracts\DetailPartsSource;
+use App\Services\Procurement\Platform\Contracts\DomExtractor;
 use App\Services\Procurement\Platform\Contracts\PlatformOutbound;
 use App\Services\Procurement\Platform\Contracts\StatusSource;
 use Illuminate\Support\Str;
@@ -51,8 +54,16 @@ use Symfony\Component\DomCrawler\Crawler;
 
 final readonly class EisDetailSource implements DetailPartsSource, StatusSource
 {
-    public function __construct(private EisPolicy $policy, private EisCardRoutes $routes,
-        private EisDetailParser $parser, private PlatformOutbound $outbound, private ProcessUuid $targetId) {}
+    /** @phpstan-ignore constructor.unusedParameter */
+    public function __construct(
+        private EisPolicy $policy,
+        private EisCardRoutes $routes,
+        private EisDetailParser $parser,
+        private PlatformOutbound $outbound,
+        private ProcessUuid $targetId,
+        private ?DetailRuleSetDto $rules = null,
+        ?DomExtractor $dom = null,
+    ) {}
 
     public function refresh(DetailRequest $request, ExecutionContext|OutboundExecutionContext $context): DetailFetchResult
     {
@@ -183,13 +194,13 @@ final readonly class EisDetailSource implements DetailPartsSource, StatusSource
         if (! $outcome instanceof TransportSucceeded) {
             throw new \LogicException('Unknown transport outcome.');
         }
-        if (in_array($outcome->response->status, [403, 429], true)) {
+        if (in_array($outcome->response->status, EisDefaultParsingRules::WAF_HTTP_STATUSES, true)) {
             CardDomHelper::logWarning('Карточка ЕИС временно недоступна из-за ограничения частоты запросов (WAF)', [
                 'reg_number' => $request->identity->value->value, 'tab' => $tab, 'http_status' => $outcome->response->status,
             ]);
 
             return new FetchDeferred(reason: NetworkDeferralReason::RateLimit,
-                retryAt: new RetryAt($context->dbNow()->value->add(new \DateInterval('PT60S'))));
+                retryAt: new RetryAt($context->dbNow()->value->add(new \DateInterval('PT'.EisDefaultParsingRules::WAF_RETRY_DELAY_SECONDS.'S'))));
         }
 
         return $outcome->response;
@@ -229,15 +240,16 @@ final readonly class EisDetailSource implements DetailPartsSource, StatusSource
 
                 continue;
             }
+            $rules = $this->rules ?? EisDefaultParsingRules::detail();
             if ($response === null || $response->status !== 200 || $body === ''
                 || strlen($body) > $this->policy->endpoints->get('card')->profile->maxTextBytes
-                || ! preg_match('~^text/html(?:;|$)~i', $response->header('content-type') ?? '')) {
+                || ! preg_match(EisDefaultParsingRules::DETAIL_CONTENT_TYPE_REGEX, $response->header('content-type') ?? '')) {
                 $parts[] = new SnapshotPart($section, Completeness::Unavailable, true, $hash, $fetchedAt);
 
                 continue;
             }
             $dom = new Crawler($body);
-            $identity = $dom->filter('.cardMainInfo__purchaseLink');
+            $identity = $this->firstMatching($dom, $rules->envelope?->numberSelectors, '.cardMainInfo__purchaseLink');
             if ($identity->count() !== 1) {
                 $parts[] = new SnapshotPart($section, Completeness::Partial, true, $hash, $fetchedAt);
 
@@ -300,25 +312,27 @@ final readonly class EisDetailSource implements DetailPartsSource, StatusSource
         array &$parts,
         bool &$partiesComplete,
     ): array {
+        $rules = $this->rules ?? EisDefaultParsingRules::detail();
         $snapshot = $this->parser->commonInfo($body, strict: true);
         $common = $snapshot->commonInfo;
         $parties = $snapshot->parties;
         $complete = $snapshot->authorizesCommonInfoReconciliation();
-        $titleNode = $dom->filter('.cardMainInfo__purchaseObject');
+        $titleNode = $this->firstMatching($dom, $rules->envelope?->titleSelectors, '.cardMainInfo__purchaseObject');
         if ($titleNode->count() !== 1) {
             $titleNode = $dom->filter('.cardMainInfo__section')
                 ->reduce(static fn (Crawler $s): bool => $s->filter('.cardMainInfo__title')->count() === 1
                     && trim($s->filter('.cardMainInfo__title')->text()) === 'Объект закупки')
                 ->filter('.cardMainInfo__content');
         }
-        $stageNode = $dom->filter('.cardMainInfo__state');
+        $stageNode = $this->firstMatching($dom, $rules->envelope?->statusSelectors, '.cardMainInfo__state');
         $title = $titleNode->count() === 1 ? trim($titleNode->text()) : '';
         if ($title === '' && isset($common->items[0])) {
             $title = trim($common->items[0]->name);
         }
         $stage = $stageNode->count() === 1 ? trim($stageNode->text()) : '';
         $complete = $complete && $title !== '' && $stage !== '';
-        $partiesComplete = $snapshot->partiesComplete && ($parties !== [] || $dom->filter('section.organizations-block table.parties-table')->count() === 1);
+        $partiesNode = $this->firstMatching($dom, $rules->parties?->customerSectionSelectors, 'section.organizations-block table.parties-table');
+        $partiesComplete = $snapshot->partiesComplete && ($parties !== [] || $partiesNode->count() === 1);
         $partHash = ContentHash::of(json_encode([$title, $stage, $common, $parties], JSON_THROW_ON_ERROR));
         $parts[] = new SnapshotPart('parties', $partiesComplete
             ? ($parties === [] ? Completeness::CompleteEmpty : Completeness::Complete)
@@ -355,9 +369,13 @@ final readonly class EisDetailSource implements DetailPartsSource, StatusSource
      */
     private function parseEventJournalTab(string $body, Crawler $dom, array &$events): array
     {
+        $rules = $this->rules ?? EisDefaultParsingRules::detail();
         $events = $this->parser->eventJournal($body, strict: true);
         $count = count($events);
-        $complete = $dom->filter('table#event')->count() === 1 && $dom->filter('table#event tbody tr')->count() === $count;
+        $rows = $this->firstMatching($dom, $rules->eventJournal?->rowSelectors, 'table#event tbody tr');
+        $complete = $rows->count() > 0
+            ? $rows->count() === $count
+            : ($dom->filter('table#event')->count() === 1 && $count === 0);
 
         return [$complete, $count];
     }
@@ -369,23 +387,43 @@ final readonly class EisDetailSource implements DetailPartsSource, StatusSource
      */
     private function parseSupplierResultsTab(string $body, Crawler $dom, ?SupplierResultsData &$results): array
     {
+        $rules = $this->rules ?? EisDefaultParsingRules::detail();
         $results = $this->parser->supplierResults($body, strict: true);
         $count = count($results->bids);
         // An unrecognized/empty layout is partial, never an implicit NotApplicable.
-        $tables = $dom->filter('div[id^="supplier-def-result-participant-table-"] table.tableBlock');
-        $rows = $tables->filter('tbody tr')->count();
-        $failedReason = mb_strtolower(CardDomHelper::readDefinitionValue($dom, 'Основание признания торгов несостоявшимися') ?? '');
-        $noBidsExpected = str_contains($failedReason, 'не подано ни одной заявки')
-            || str_contains($failedReason, 'все поданные заявки отклонены')
-            || str_contains($failedReason, 'заявка не соответствует требованиям')
-            || str_contains($failedReason, 'признан уклонившимся')
-            || str_contains($failedReason, 'признаны уклонившимися')
-            || str_contains($failedReason, 'отказался от заключения контракта');
+        $tables = $this->firstMatching($dom, $rules->supplierResults?->containerSelectors, 'div[id^="supplier-def-result-participant-table-"] table.tableBlock');
+        $rows = $tables->count() > 0
+            ? $this->firstMatching($tables, $rules->supplierResults?->participantRowSelectors, 'tbody tr')->count()
+            : 0;
+        $failedReason = mb_strtolower(CardDomHelper::readDefinitionValue($dom, 'Основание признания торгов несостоявшимися', $rules->dom) ?? '');
+        $noBidsExpected = false;
+        foreach (EisDefaultParsingRules::NO_BIDS_EXPECTED_PHRASES as $phrase) {
+            if (str_contains($failedReason, $phrase)) {
+                $noBidsExpected = true;
+                break;
+            }
+        }
         // Publication supports one group of bids and one award, with no lot identity.
         $ambiguous = $tables->count() > 1 || $results->hasMultipleWinners();
         $complete = ! $ambiguous && $results->protocol !== null && $rows === $count
             && ($count > 0 || $results->protocol->type === ProtocolType::Failed->value || $noBidsExpected);
 
         return [$complete, $count];
+    }
+
+    private function firstMatching(Crawler $crawler, ?SelectorChain $chain, string $defaultSelector): Crawler
+    {
+        if ($chain !== null) {
+            foreach ($chain->selectors as $selector) {
+                $matched = $crawler->filter($selector->selector);
+                if ($matched->count() > 0) {
+                    return $matched;
+                }
+            }
+
+            return new Crawler;
+        }
+
+        return $crawler->filter($defaultSelector);
     }
 }

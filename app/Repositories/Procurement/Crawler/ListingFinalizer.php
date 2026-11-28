@@ -21,8 +21,11 @@ use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Dto\Procurement\Process\Primitives\WorkId;
 use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Enums\Procurement\Platform\TerminalProof;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Enums\Procurement\Process\Governance\ActorKind;
 use App\Enums\Procurement\Process\Outcomes\BlockedReason;
+use App\Exceptions\Procurement\Parsing\ParsingRuleSetDisabledException;
+use App\Exceptions\Procurement\Parsing\ParsingRuleSetUnavailableException;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\Process\Projection\TransitionRepository;
 use App\Repositories\Procurement\Process\Support\CallerTransaction;
@@ -32,6 +35,7 @@ use App\Services\Procurement\Acquisition\Detail\IdentityResolver;
 use App\Services\Procurement\Acquisition\Detail\SnapshotFinalizer;
 use App\Services\Procurement\Acquisition\Listing\ListingPublicationLocks;
 use App\Services\Procurement\Acquisition\Orchestration\AcquisitionProvenance;
+use App\Services\Procurement\Parsing\ParsingRuleSetResolver;
 use App\Services\Procurement\Process\Contracts\PublicationLocks;
 use App\Services\Procurement\Process\Contracts\StagePublicationRepository;
 use App\Support\Database\PostgresAdvisoryLock;
@@ -83,7 +87,7 @@ final class ListingFinalizer implements StagePublicationRepository
             foreach ($next as [$id, $nextTask]) {
                 $successors[$id->value] = $this->store->storeTask($crawlRun, $id, $input->crawlBlockId, $nextTask);
             }
-            $this->store->receipt($input, ListingReceipt::page($result->page, $outcome, $reason, $uninterrupted, $references));
+            $this->store->receipt($input, ListingReceipt::page($result->page, $outcome, $reason, $uninterrupted, $references, $result->activeRulesHash));
 
             return array_values($successors);
         } finally {
@@ -154,7 +158,7 @@ final class ListingFinalizer implements StagePublicationRepository
                 sourceUpdatedBefore: $summary->updatedBefore === null ? null : Carbon::instance($summary->updatedBefore));
             $procurement = $this->snapshots->persistLocked($data, $locked,
                 processRunId: AcquisitionProvenance::runFor($input), observedAt: Carbon::instance($result->observedAt));
-            $detail = $this->detailIntent($procurement->id, $procurement->head_generation, $input, $summary);
+            $detail = $this->detailIntent($procurement->id, $procurement->head_generation, $input, $summary, $task->registryId);
             $successors[$detail->intentId->value] = $detail;
             $references[] = new ListingDetailReference($detail->intentId, $procurement->id,
                 $summary->fingerprint, $summary->sourceRevision, $summary->detailLocator);
@@ -169,9 +173,19 @@ final class ListingFinalizer implements StagePublicationRepository
     private function decideNextCrawlStep(ListingInput $input, ListingResult $result, ProcessUuid $crawlRun, bool $uninterrupted): array
     {
         $task = $result->task;
+        $newHash = $result->activeRulesHash;
         $outcome = 'page';
         $reason = null;
         $next = [];
+        if ($task->pass > 1 && $newHash !== null && $task->rulesHash !== null && $newHash !== $task->rulesHash && $task->ruleEpoch < 3) {
+            $nextEpoch = $task->ruleEpoch + 1;
+            $next[] = [
+                ListingStoreRepository::id($task->rootBlockId->value.':e'.$nextEpoch.':1:1'),
+                $task->withRuleEpoch($nextEpoch, $newHash),
+            ];
+
+            return ['outcome' => 'pass', 'reason' => null, 'next' => $next];
+        }
         if ($result->split !== null) {
             $count = $this->store->allocatedPartitions($input->crawlBlockId);
             if ($result->split->children === [] || $count + count($result->split->children) > $task->maxPartitions) {
@@ -193,8 +207,9 @@ final class ListingFinalizer implements StagePublicationRepository
                 if ($cursor->payloadHash->hex === $task->cursor->payloadHash->hex) {
                     throw new \LogicException('Non-progressing listing cursor.');
                 }
-                $nextTask = $task->next($cursor);
-                $next[] = [ListingStoreRepository::id($task->rootBlockId->value.':'.$nextTask->pass.':'.$nextTask->page), $nextTask];
+                $nextTask = $task->next($cursor, rulesHash: $newHash);
+                $epochSuffix = $nextTask->ruleEpoch > 0 ? ':e'.$nextTask->ruleEpoch : '';
+                $next[] = [ListingStoreRepository::id($task->rootBlockId->value.$epochSuffix.':'.$nextTask->pass.':'.$nextTask->page), $nextTask];
             }
         } else {
             $digest = $this->store->fullDigest($task, ListingReceipt::page($result->page, 'pass'));
@@ -210,17 +225,21 @@ final class ListingFinalizer implements StagePublicationRepository
                 $outcome = 'pass';
                 // Resumed offset passes are best-observed, never the first half of stability proof.
                 $comparison = $uninterrupted ? $digest : ContentHash::of('interrupted:'.$task->rootBlockId->value.':'.$task->pass);
-                $nextTask = $task->next($task->rootCursor, true, $comparison);
-                $next[] = [ListingStoreRepository::id($task->rootBlockId->value.':'.$nextTask->pass.':1'), $nextTask];
+                $nextTask = $task->next($task->rootCursor, true, $comparison, $newHash);
+                $epochSuffix = $nextTask->ruleEpoch > 0 ? ':e'.$nextTask->ruleEpoch : '';
+                $next[] = [ListingStoreRepository::id($task->rootBlockId->value.$epochSuffix.':'.$nextTask->pass.':1'), $nextTask];
             }
         }
 
         return ['outcome' => $outcome, 'reason' => $reason, 'next' => $next];
     }
 
-    private function detailIntent(int $procurementId, int $head, ListingInput $input, ProcurementSummary $summary): DetailInput
+    private function detailIntent(int $procurementId, int $head, ListingInput $input, ProcurementSummary $summary, int $registryId): DetailInput
     {
-        $semantic = ContentHash::of($input->filterHash->hex.':'.$input->adapterVersion);
+        $detailRulesHash = $this->activeDetailRulesHash($summary, $registryId);
+        $semantic = $detailRulesHash !== null
+            ? ContentHash::of($input->filterHash->hex.':'.$input->adapterVersion.':'.$detailRulesHash)
+            : ContentHash::of($input->filterHash->hex.':'.$input->adapterVersion);
         $key = ContentHash::of(json_encode([$procurementId, $summary->sourceRevision, $summary->fingerprint->hex,
             $semantic->hex, $input->accessPolicyHash->hex], JSON_THROW_ON_ERROR));
         $id = ListingStoreRepository::id('detail:'.$key->hex);
@@ -236,6 +255,31 @@ final class ListingFinalizer implements StagePublicationRepository
 
         return new DetailInput($procurementId, new ProcessUuid($row->string('id')), $row->int('expected_head_generation'),
             $semantic, $input->accessPolicyHash, $input->adapterVersion);
+    }
+
+    private function activeDetailRulesHash(ProcurementSummary $summary, int $registryId): ?string
+    {
+        $platformCode = $summary->identity->platform->value;
+        $row = LedgerRow::one(
+            'SELECT r.platform_id, r.code AS registry_code FROM prc_registries r WHERE r.id = ?',
+            [$registryId],
+        );
+        if ($row === null) {
+            return null;
+        }
+
+        try {
+            $resolved = app(ParsingRuleSetResolver::class)->resolveForPlatformId(
+                platformId: $row->int('platform_id'),
+                platformCode: $platformCode,
+                stage: StageCode::Detail,
+                registryCode: $row->string('registry_code'),
+            );
+
+            return $resolved?->rulesHashHex;
+        } catch (ParsingRuleSetDisabledException|ParsingRuleSetUnavailableException) {
+            return null;
+        }
     }
 
     /** @return array<string, mixed>|null */

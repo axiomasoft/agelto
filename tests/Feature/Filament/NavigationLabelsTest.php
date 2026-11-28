@@ -15,6 +15,7 @@ use App\Filament\Resources\Procurement\Crawler\Crawlers\CrawlerResource;
 use App\Filament\Resources\Procurement\Estimates\EstimateResource;
 use App\Filament\Resources\Procurement\Health\PlatformChecks\PlatformCheckResource;
 use App\Filament\Resources\Procurement\OperationLogs\OperationLogResource;
+use App\Filament\Resources\Procurement\Platform\ParsingRuleSets\ParsingRuleSetResource;
 use App\Filament\Resources\Procurement\Platform\Platforms\PlatformResource;
 use App\Filament\Resources\Procurement\Platform\Registries\RegistryResource;
 use App\Filament\Resources\Procurement\Platform\StatusMappings\StatusMappingResource;
@@ -43,6 +44,7 @@ test('назначает всем обнаруженным ресурсам ос
         RegistryResource::class => ['Площадки', 'Реестры закупок', 20],
         StatusMappingResource::class => ['Площадки', 'Соответствие статусов', 30],
         PlatformCheckResource::class => ['Площадки', 'Проверки площадок', 40],
+        ParsingRuleSetResource::class => ['Площадки', 'Правила парсинга', 50],
         CrawlerResource::class => ['Сбор данных', 'Задания сбора', 10],
         FixtureResource::class => ['Качество анализа', 'Эталонные документы', 10],
         DatasetExampleResource::class => ['Качество анализа', 'Проверенные примеры', 20],

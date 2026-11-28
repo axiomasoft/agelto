@@ -27,6 +27,9 @@ use App\Enums\Procurement\Network\TrafficClass;
 use App\Enums\Procurement\Process\Core\AcquisitionKind;
 use App\Enums\Procurement\Process\Core\StageCode;
 use App\Enums\Procurement\Process\Outcomes\BlockedReason;
+use App\Exceptions\Procurement\Parsing\ParsingRuleSetDisabledException;
+use App\Exceptions\Procurement\Parsing\ParsingRuleSetUnavailableException;
+use App\Repositories\Procurement\Crawler\ListingStoreRepository;
 use App\Repositories\Procurement\Network\SourceCatalogRepository;
 use App\Repositories\Procurement\Process\Support\LedgerRow;
 use App\Services\Procurement\Acquisition\Detail\DetailHandler;
@@ -36,6 +39,7 @@ use App\Services\Procurement\Acquisition\Listing\AcquisitionSources;
 use App\Services\Procurement\Acquisition\Listing\ListingHandler;
 use App\Services\Procurement\Acquisition\Status\StatusRefreshHandler;
 use App\Services\Procurement\Network\UrlPolicy;
+use App\Services\Procurement\Parsing\ParsingRuleSetResolver;
 use App\Services\Procurement\Platform\Contracts\DetailPartsSource;
 use App\Services\Procurement\Platform\Contracts\ListingFilterCodec;
 use App\Services\Procurement\Platform\Contracts\ListingPartitioner;
@@ -106,14 +110,30 @@ final readonly class AcquisitionHandler implements StageHandler
         $first = new OutboundRequestPlan(new ProcessUuid((string) Str::uuid()), $targetId, 'GET',
             new SafeUrl($endpoint->url), $endpoint->profile, $traffic, IdempotencyClass::ReadOnly);
 
+        $registryCode = $input instanceof ListingInput
+            ? app(ListingStoreRepository::class)->task($input)->registry
+            : LedgerRow::one('SELECT r.code FROM prc_procurements p JOIN prc_registries r ON r.id=p.registry_id WHERE p.id=?', [$input->procurementId])?->string('code');
+
+        try {
+            $ruleSet = app(ParsingRuleSetResolver::class)->resolveForPlatformId(
+                platformId: $run->int('platform_id'),
+                platformCode: $definition->code->value,
+                stage: $this->stage,
+                registryCode: $registryCode,
+            );
+        } catch (ParsingRuleSetDisabledException|ParsingRuleSetUnavailableException) {
+            return new StageBlocked(BlockedReason::PolicyReview);
+        }
+
         return $this->validation->run($contract, $run->int('platform_id'), $this->routes->profile($profileId), $first,
             $this->urls ?? new UrlPolicy($definition->sourceTargets->origins()), $execution,
-            function (PlatformOutbound $outbound, AcquisitionAssessment $assessment) use ($capability, $definition, $targetId, $input, $execution): StageOutcome {
+            function (PlatformOutbound $outbound, AcquisitionAssessment $assessment) use ($capability, $definition, $targetId, $input, $execution, $ruleSet): StageOutcome {
                 $source = AcquisitionSources::resolve(
                     definition: $definition,
                     capability: $capability,
                     outbound: $outbound,
                     targetId: $targetId,
+                    ruleSet: $ruleSet,
                 );
                 if ($input instanceof ListingInput) {
                     if (! $source instanceof ListingSource || ! $definition->partitioning instanceof SupportedListingPartitioningCapability) {
@@ -123,12 +143,20 @@ final readonly class AcquisitionHandler implements StageHandler
                     if (! $partitioner instanceof ListingPartitioner || ! $partitioner instanceof ListingFilterCodec) {
                         throw new \LogicException('Missing listing filter codec.');
                     }
-                    $handler = app()->makeWith(ListingHandler::class, ['source' => AcquisitionSources::listing($source, $assessment), 'partitioner' => $partitioner, 'filters' => $partitioner]);
+                    $handler = app()->makeWith(ListingHandler::class, [
+                        'source' => AcquisitionSources::listing($source, $assessment),
+                        'partitioner' => $partitioner,
+                        'filters' => $partitioner,
+                        'activeRulesHash' => $ruleSet?->rulesHashHex,
+                    ]);
                 } elseif ($input instanceof DetailInput) {
                     if (! $source instanceof DetailPartsSource) {
                         throw new \LogicException('Missing detail parts capability.');
                     }
-                    $handler = app()->makeWith(DetailHandler::class, ['source' => AcquisitionSources::detail($source, $assessment)]);
+                    $handler = app()->makeWith(DetailHandler::class, [
+                        'source' => AcquisitionSources::detail($source, $assessment),
+                        'activeRulesHash' => $ruleSet?->rulesHashHex,
+                    ]);
                 } else {
                     if (! $source instanceof StatusSource) {
                         throw new \LogicException('Missing status capability.');

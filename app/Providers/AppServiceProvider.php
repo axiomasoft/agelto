@@ -11,6 +11,7 @@ use App\Doctor\Diagnostics\PrivatePackagesArePinned;
 use App\Doctor\Diagnostics\SecretContractIsReady;
 use App\Dto\Platforms\Eis\EisCardRoutes;
 use App\Dto\Platforms\Eis\EisPolicy;
+use App\Dto\Procurement\Parsing\Rules\DetailRuleSetDto;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Models\User;
 use App\Pulse\Cards\LlmSpendCard;
@@ -43,7 +44,25 @@ use App\Services\Procurement\Network\Contracts\LegacyOutbound;
 use App\Services\Procurement\Network\LegacyOutboundClient;
 use App\Services\Procurement\Network\NetworkProbeReconcileCategory;
 use App\Services\Procurement\Network\NetworkReconcileCategory;
+use App\Services\Procurement\Parsing\Engine\InMemoryDriftCollector;
+use App\Services\Procurement\Parsing\Engine\UniversalCardUrlRouter;
+use App\Services\Procurement\Parsing\Engine\UniversalCsvReader;
+use App\Services\Procurement\Parsing\Engine\UniversalDocumentListExtractor;
+use App\Services\Procurement\Parsing\Engine\UniversalDomExtractor;
+use App\Services\Procurement\Parsing\Engine\UniversalEventTableExtractor;
+use App\Services\Procurement\Parsing\Engine\UniversalJsonExtractor;
+use App\Services\Procurement\Parsing\Engine\UniversalTabularSummaryMapper;
+use App\Services\Procurement\Parsing\ParsingRuleSetResolver;
+use App\Services\Procurement\Parsing\Schema\ParsingRuleSchemaRegistry;
+use App\Services\Procurement\Platform\Contracts\CardUrlRouter;
+use App\Services\Procurement\Platform\Contracts\DocumentListExtractor;
 use App\Services\Procurement\Platform\Contracts\DocumentUrlPolicy;
+use App\Services\Procurement\Platform\Contracts\DomExtractor;
+use App\Services\Procurement\Platform\Contracts\DriftCollector;
+use App\Services\Procurement\Platform\Contracts\EventTableExtractor;
+use App\Services\Procurement\Platform\Contracts\JsonPayloadExtractor;
+use App\Services\Procurement\Platform\Contracts\TabularReader;
+use App\Services\Procurement\Platform\Contracts\TabularSummaryMapper;
 use App\Services\Procurement\Process\Contracts\ProviderRecoveryResolver;
 use App\Services\Procurement\Process\Daemons\FeederDaemon;
 use App\Services\Procurement\Process\Daemons\ReconcileDaemon;
@@ -51,6 +70,7 @@ use App\Services\Procurement\Process\Execution\StageRegistry;
 use App\Services\Procurement\SourceTargetValidator;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\Event;
@@ -95,7 +115,63 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(EisSourceClock::class, fn () => new EisSourceClock($this->app->make(EisPolicy::class)->sourceTimezone->getName()));
         $this->app->bind(DocumentUrlPolicy::class,
             SourceTargetValidator::class);
-        $this->app->bind(EisCardRoutes::class, static fn (): EisCardRoutes => (new EisCardCatalog)->routes());
+        $this->app->singleton(ParsingRuleSchemaRegistry::class);
+        $this->app->singleton(ParsingRuleSetResolver::class);
+        $this->app->bind(TabularReader::class, UniversalCsvReader::class);
+        $this->app->bind(DomExtractor::class, UniversalDomExtractor::class);
+        $this->app->bind(TabularSummaryMapper::class, UniversalTabularSummaryMapper::class);
+        $this->app->bind(CardUrlRouter::class, UniversalCardUrlRouter::class);
+        $this->app->bind(DocumentListExtractor::class, UniversalDocumentListExtractor::class);
+        $this->app->bind(EventTableExtractor::class, UniversalEventTableExtractor::class);
+        $this->app->bind(JsonPayloadExtractor::class, UniversalJsonExtractor::class);
+        $this->app->bind(DriftCollector::class, InMemoryDriftCollector::class);
+        $this->app->bind(EisCardRoutes::class, static function (Application $app): EisCardRoutes {
+            $catalog = new EisCardCatalog;
+            $procedures = $catalog->cardUrlTemplates();
+            $procedureTypes = $catalog->procedureUrlTypes();
+
+            if ($app->bound(DetailRuleSetDto::class)) {
+                $routes = $app->make(DetailRuleSetDto::class)->routes;
+                if ($routes !== null) {
+                    $baseOrigin = 'https://zakupki.gov.ru';
+                    $baseHost = 'zakupki.gov.ru';
+                    $resolveTab = static function (?string $path) use ($baseOrigin, $baseHost): ?string {
+                        if ($path === null || substr_count($path, '{regNumber}') !== 1) {
+                            return null;
+                        }
+                        if (str_starts_with($path, 'https://')) {
+                            $host = parse_url($path, PHP_URL_HOST);
+
+                            return is_string($host) && strcasecmp($host, $baseHost) === 0
+                                ? $path
+                                : null;
+                        }
+                        if (str_starts_with($path, '/') && ! str_starts_with($path, '//')) {
+                            return $baseOrigin.$path;
+                        }
+
+                        return null;
+                    };
+
+                    $overrides = [
+                        'common-info' => $resolveTab($routes->commonInfoPath),
+                        'documents' => $resolveTab($routes->documentsPath),
+                        'event-journal' => $resolveTab($routes->journalPath),
+                        'supplier-results' => $resolveTab($routes->supplierResultsPath),
+                    ];
+
+                    foreach ($procedures as $procedure => $tabs) {
+                        foreach ($overrides as $tab => $url) {
+                            if ($url !== null && ($tabs[$tab] ?? null) !== null) {
+                                $procedures[$procedure][$tab] = str_replace('{type}', $procedure, $url);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return new EisCardRoutes($procedures, $procedureTypes);
+        });
         $this->app->singleton(DetailValueCodec::class, fn (): DetailValueCodec => $this->app->make(AcquisitionRuntime::class)->values());
         $this->app->afterResolving(StageRegistry::class, function (StageRegistry $registry): void {
             $this->app->make(AcquisitionRuntime::class)->register($registry, $this->app->make(DetailValueCodec::class));

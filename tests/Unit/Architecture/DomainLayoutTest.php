@@ -21,7 +21,7 @@ function alignedDomainLayoutLayers(): array
             ],
             // подобласть `Network` — typed network authority/transport enums (structure#s01).
             // Platform — neutral adapter assessment/completeness enums (structure#s01).
-            'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Estimate', 'Health', 'Network', 'Platform', 'Process', 'Proxy'],
+            'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Estimate', 'Health', 'Network', 'Parsing', 'Platform', 'Process', 'Proxy'],
         ],
         // , Completion Notes: `OperationFailed` (базовый, кросс) + `UnknownReportFormat` (кросс).
         // `InvalidEvalDiffPayload` обслуживает корневой estimate CLI-контур, а не отдельную подобласть.
@@ -32,7 +32,7 @@ function alignedDomainLayoutLayers(): array
             'root' => ['OperationFailed', 'UnknownReportFormat', 'InvalidEvalDiffPayload'],
             // Network — typed outbound control exits, без переключения legacy callers.
             // Document — typed head/storage dependency failures.
-            'subareas' => ['Ai', 'Crawler', 'Document', 'Health', 'Network', 'Platform', 'Prepare', 'Process', 'Proxy'],
+            'subareas' => ['Ai', 'Crawler', 'Document', 'Health', 'Network', 'Parsing', 'Platform', 'Prepare', 'Process', 'Proxy'],
         ],
         // , Completion Notes: три файла ядра закупки остаются в корне.
         'App\Dto\Procurement' => [
@@ -40,7 +40,7 @@ function alignedDomainLayoutLayers(): array
             // `Network` — outbound plan/result/owner DTO; `Platform` — нейтральные части Definition
             // (RequestProfile, CanonicalOrigin, SourceTargetDefinitions) без кода конкретной площадки.
             // Acquisition — neutral fetch results; Document — immutable references (structure#s01).
-            'subareas' => ['Acquisition', 'Ai', 'Analyzers', 'Bench', 'Crawler', 'Details', 'Document', 'Fixture', 'Gold', 'Health', 'History', 'Network', 'Platform', 'Prepare', 'Process', 'Proxy'],
+            'subareas' => ['Acquisition', 'Ai', 'Analyzers', 'Bench', 'Crawler', 'Details', 'Document', 'Fixture', 'Gold', 'Health', 'History', 'Network', 'Parsing', 'Platform', 'Prepare', 'Process', 'Proxy'],
         ],
         // , Completion Notes: три ядровых репозитория закупки остаются в корне.
         // (2026.08.06-CRAWL-HARDEN): подобласть `Platform` заведена первым файлом
@@ -50,7 +50,7 @@ function alignedDomainLayoutLayers(): array
         // подобласть `Network` — единственный writer network authority rows.
         'App\Repositories\Procurement' => [
             'root' => ['ProcurementDetailStoreRepository', 'ProcurementReadRepository', 'ProcurementStoreRepository'],
-            'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Health', 'History', 'Network', 'Platform', 'Process', 'Proxy'],
+            'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Health', 'History', 'Network', 'Parsing', 'Platform', 'Process', 'Proxy'],
         ],
     ];
 }

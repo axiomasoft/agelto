@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Health;
 
 use App\Dto\Procurement\Health\CardParseOutcome;
+use App\Dto\Procurement\Parsing\Rules\DetailRuleSetDto;
 use InvalidArgumentException;
 use Symfony\Component\DomCrawler\Crawler;
 use Throwable;
@@ -20,8 +21,13 @@ final readonly class CardAnchorProbe
      * @param  array<string, mixed>  $tabDescription
      * @param  array<string, mixed>  $keyFieldValues
      */
-    public function probe(?string $html, array $tabDescription, array $keyFieldValues = []): CardParseOutcome
-    {
+    public function probe(
+        ?string $html,
+        array $tabDescription,
+        array $keyFieldValues = [],
+        ?DetailRuleSetDto $ruleSet = null,
+        ?string $tabName = null,
+    ): CardParseOutcome {
         $keyFields = $this->keyFields($tabDescription);
 
         if ($html === null) {
@@ -39,7 +45,11 @@ final readonly class CardAnchorProbe
             $anchors = [];
             $anchorsMissingCritical = 0;
 
-            foreach ($this->anchors($tabDescription) as $anchor) {
+            $anchorDefs = ($ruleSet !== null && $tabName !== null)
+                ? (($this->anchorsFromRuleSet($ruleSet, $tabName)) ?: $this->anchors($tabDescription))
+                : $this->anchors($tabDescription);
+
+            foreach ($anchorDefs as $anchor) {
                 $matches = $crawler->filter($anchor['selector'])->count();
 
                 if ($anchor['critical'] && $matches < $anchor['min_matches']) {
@@ -80,6 +90,48 @@ final readonly class CardAnchorProbe
             anchorsMissingCritical: 0,
             keyFieldsExpected: count($keyFields),
             keyFieldsFilled: $this->filledKeyFields($keyFields, $keyFieldValues),
+        );
+    }
+
+    /**
+     * @return list<array{selector: string, critical: bool, min_matches: int}>
+     */
+    public function anchorsFromRuleSet(DetailRuleSetDto $ruleSet, string $tab): array
+    {
+        $rawSelectors = match ($tab) {
+            'common-info', 'common_info' => [
+                $ruleSet->envelope?->numberSelectors?->selectors[0]->selector,
+                $ruleSet->envelope?->titleSelectors?->selectors[0]->selector,
+                $ruleSet->envelope?->statusSelectors?->selectors[0]->selector,
+                $ruleSet->parties?->customerSectionSelectors?->selectors[0]->selector,
+            ],
+            'documents' => [
+                $ruleSet->envelope?->numberSelectors?->selectors[0]->selector,
+                $ruleSet->documents?->containerSelectors?->selectors[0]->selector,
+            ],
+            'event-journal', 'event_journal' => [
+                $ruleSet->envelope?->numberSelectors?->selectors[0]->selector,
+                $ruleSet->eventJournal?->rowSelectors?->selectors[0]->selector,
+            ],
+            'supplier-results', 'supplier_results' => [
+                $ruleSet->envelope?->numberSelectors?->selectors[0]->selector,
+                $ruleSet->supplierResults?->containerSelectors?->selectors[0]->selector,
+            ],
+            default => [],
+        };
+
+        $selectors = array_values(array_filter(
+            $rawSelectors,
+            static fn (?string $s): bool => $s !== null && $s !== '',
+        ));
+
+        return array_map(
+            static fn (string $selector): array => [
+                'selector' => $selector,
+                'critical' => true,
+                'min_matches' => 1,
+            ],
+            $selectors,
         );
     }
 

@@ -112,6 +112,15 @@ final class PlatformSourceRules
                 'App\\Models\\Procurement\\Platform\\Platform',
                 'App\\Models\\Procurement\\Platform\\Registry',
             ],
+            'database/seeders/Platforms/Eis/EisParsingRulesSeeder.php' => [
+                'App\\Dto\\Procurement\\Platform\\Identity\\PlatformCode',
+                'App\\Enums\\Procurement\\Parsing\\ParsingRuleActorType',
+                'App\\Enums\\Procurement\\Parsing\\ParsingRuleSource',
+                'App\\Enums\\Procurement\\Process\\Core\\StageCode',
+                'App\\Models\\Procurement\\Platform\\Platform',
+                'App\\Repositories\\Procurement\\Parsing\\ParsingRuleReadRepository',
+                'App\\Services\\Procurement\\Parsing\\ParsingRuleManager',
+            ],
             // Q2: profile preparation is an application integration role, outside fetch/parser purity.
             'app/Services/Platforms/Eis/Listing/EisProfilePreparer.php' => [
                 'App\\Models\\Procurement\\Crawler\\Crawler',
