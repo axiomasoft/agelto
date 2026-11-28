@@ -55,16 +55,21 @@ folder, name = Path(sys.argv[1]), sys.argv[2]
 sys.exit(bounded_pest(folder, name, sys.argv[3:], folder / (name + ".txt")).returncode)
 PYTHON
         then
+            # Preserve the failing JUnit and every earlier sample for diagnosis.
+            # A failed sample still exits before any group provenance is written.
+            "${compose[@]}" cp "app:$app_root/storage/app/release-quality/$name.xml" "$evidence_dir/$name.xml" || :
             cat "$evidence_dir/$name.txt" >&2
             exit 1
         fi
     elif ! "${app[@]}" "${pest[@]}" >"$evidence_dir/$name.txt" 2>&1; then
+        "${compose[@]}" cp "app:$app_root/storage/app/release-quality/$name.xml" "$evidence_dir/$name.xml" || :
         cat "$evidence_dir/$name.txt" >&2
         exit 1
     fi
     finished=$(date +%s%3N)
     elapsed=$((finished - started))
     printf '%s\n' "$elapsed" >"$evidence_dir/$name.milliseconds"
+    "${compose[@]}" cp "app:$app_root/storage/app/release-quality/$name.xml" "$evidence_dir/$name.xml"
 }
 
 "${app[@]}" sh -ec 'rm -rf storage/app/release-quality && mkdir -p storage/app/release-quality'
