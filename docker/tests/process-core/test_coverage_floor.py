@@ -12,7 +12,7 @@ SPEC.loader.exec_module(floor)
 
 
 class CoverageFloorTest(unittest.TestCase):
-    def test_checks_both_global_and_critical_file_floors(self):
+    def test_проверяет_общий_и_критический_пороги_покрытия(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             budget, report = root / 'budget.json', root / 'coverage.xml'

@@ -11,7 +11,7 @@ SPEC.loader.exec_module(compare)
 
 
 class CompareCoverageShardsTest(unittest.TestCase):
-    def test_detects_changed_tests_and_covered_lines(self):
+    def test_обнаруживает_изменение_тестов_и_покрытых_строк(self):
         with tempfile.TemporaryDirectory() as temp:
             reference, sharded = Path(temp) / 'reference', Path(temp) / 'sharded'
             reference.mkdir()

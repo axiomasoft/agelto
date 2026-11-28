@@ -12,7 +12,7 @@ SCRIPT = Path(__file__).resolve().parents[2] / 'scripts/collect-release-quality-
 
 
 class ReleaseQualityFailureEvidenceTest(unittest.TestCase):
-    def test_failed_sample_preserves_its_junit_and_previous_success(self):
+    def test_после_падения_сохраняет_его_junit_и_предыдущие_результаты(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             script = root / 'repo/docker/scripts/collect-release-quality-evidence.sh'

@@ -39,12 +39,12 @@ class MergeCoverageShardsTest(unittest.TestCase):
     def shard(self, group):
         return self.directory / f'release-quality-group-{self.head}-{group}'
 
-    def test_merges_disjoint_passing_cases_and_sums_runtime(self):
+    def test_объединяет_успешные_непересекающиеся_тесты_и_суммирует_время(self):
         suites, duration, _ = merge.validate(self.directory, self.head, self.root)
         self.assertEqual(len(suites.findall('.//testcase')), 4)
         self.assertEqual(duration, 400)
 
-    def test_missing_or_nonpassing_shard_is_rejected(self):
+    def test_отклоняет_отсутствующий_или_упавший_шард(self):
         (self.shard('coverage-2') / 'coverage-2.php').unlink()
         with self.assertRaisesRegex(ValueError, 'serialized coverage missing'):
             merge.validate(self.directory, self.head, self.root)
@@ -53,7 +53,7 @@ class MergeCoverageShardsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'no passing executed evidence'):
             merge.validate(self.directory, self.head, self.root)
 
-    def test_duplicate_case_or_wrong_candidate_is_rejected(self):
+    def test_отклоняет_дубликаты_тестов_и_чужой_коммит(self):
         xml = self.shard('coverage-2') / 'coverage-2.xml'
         xml.write_text((self.shard('coverage-1') / 'coverage-1.xml').read_text())
         with self.assertRaisesRegex(ValueError, 'duplicate test'):

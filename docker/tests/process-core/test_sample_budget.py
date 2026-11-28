@@ -12,7 +12,7 @@ SPEC.loader.exec_module(sample)
 
 
 class SampleBudgetTest(unittest.TestCase):
-    def test_profile_uses_same_required_floor_as_final_gate(self):
+    def test_профиль_использует_тот_же_бюджет_что_итоговая_проверка(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             budget = root / 'budget.json'
@@ -24,7 +24,7 @@ class SampleBudgetTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'below the measured floor'):
                 sample.check('profile', budget, root)
 
-    def test_serial_uses_median_and_rejects_unbudgeted_groups(self):
+    def test_serial_использует_медиану_и_отклоняет_неизвестные_группы(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             budget = root / 'budget.json'
