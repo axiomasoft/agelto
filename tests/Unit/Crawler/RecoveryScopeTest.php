@@ -13,7 +13,11 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 test('сохраняет предметный фильтр fresh-профиля в cursor и накладывает его на archive runtime', function () {
-    $registry = Registry::factory()->eis()->create();
+    // The canonical EIS registry may already have been created by another committed fixture.
+    $existingRegistry = EisCrawlerFactory::new()->make()->registry;
+    $registry = EisCrawlerFactory::new()->make()->registry;
+    expect($registry)->toBeInstanceOf(Registry::class)
+        ->and($registry->getKey())->toBe($existingRegistry->getKey());
     $freshCrawler = EisCrawlerFactory::new()
         ->filter(new EisSearchFilter(
             stageApplications: true,
