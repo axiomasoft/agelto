@@ -67,7 +67,14 @@ def merge(directory, head, root):
     rig.compose('cp', f'app:{target}/coverage-clover.xml', str(output / 'coverage-clover.xml'))
     proof = {'format': 'release-quality-group/v1', 'group': 'coverage', 'candidate': head,
              'samples': groups.GROUPS['coverage'], 'dependencies': baseline[0],
-             'manifest_sha256': baseline[1], 'runtime_inputs_sha256': baseline[2]}
+             'manifest_sha256': baseline[1], 'runtime_inputs_sha256': baseline[2],
+             'coverage_shards': [{
+                 'group': group,
+                 'junit_sha256': groups.sha256(directory / f'release-quality-group-{head}-{group}' / f'{group}.xml'),
+                 'coverage_sha256': groups.sha256(directory / f'release-quality-group-{head}-{group}' / f'{group}.php'),
+                 'duration_sha256': groups.sha256(directory / f'release-quality-group-{head}-{group}' / f'{group}.milliseconds'),
+                 'provenance_sha256': groups.sha256(directory / f'release-quality-group-{head}-{group}' / f'provenance-{group}.json'),
+             } for group in groups.SHARDS]}
     groups.validate_samples('coverage', output)
     (output / 'provenance-coverage.json').write_text(json.dumps(proof, sort_keys=True, indent=2) + '\n')
 

@@ -367,7 +367,7 @@ jobs:
           path: ci-artifacts/release-quality-groups
       - name: Verify all 13 samples and enforce coverage and time budgets
         run: |
-          python3 docker/scripts/release-quality-groups.py verify ci-artifacts/release-quality-groups ci-artifacts/release-quality
+          python3 docker/scripts/release-quality-groups.py verify ci-artifacts/release-quality-groups ci-artifacts/release-quality --require-coverage-shards
           python3 docker/scripts/check-release-quality.py \
             --budget tests/performance-budget.json \
             --evidence ci-artifacts/release-quality \

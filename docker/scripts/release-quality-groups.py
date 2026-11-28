@@ -59,7 +59,7 @@ def write(group, directory, root):
     (directory / f'provenance-{group}.json').write_text(json.dumps(proof, sort_keys=True, indent=2) + '\n')
 
 
-def verify(directory, output, head, root):
+def verify(directory, output, head, root, require_coverage_shards=False):
     runtime_inputs = root / 'tests/Fixtures/ProcessCore/runtime-inputs.json'
     baseline = (json.loads(runtime_inputs.read_text())['repositories'],
                 sha256(root / 'tests/Fixtures/ProcessCore/manifest.json'), sha256(runtime_inputs))
@@ -72,6 +72,26 @@ def verify(directory, output, head, root):
         if identity != baseline:
             raise ValueError(f'{group} has different dependencies or fixtures')
         validate_samples(group, group_dir)
+        if group == 'coverage':
+            shards = proof.get('coverage_shards')
+            if shards is None and require_coverage_shards:
+                raise ValueError('coverage shard provenance missing')
+            if shards is not None:
+                if not isinstance(shards, list) or [item.get('group') for item in shards] != list(SHARDS):
+                    raise ValueError('coverage shard provenance is incomplete')
+                duration = 0
+                for item in shards:
+                    name = item['group']
+                    shard = directory / f'release-quality-group-{head}-{name}'
+                    validate_samples(name, shard)
+                    files = {'junit_sha256': shard / f'{name}.xml', 'coverage_sha256': shard / f'{name}.php',
+                             'duration_sha256': shard / f'{name}.milliseconds',
+                             'provenance_sha256': shard / f'provenance-{name}.json'}
+                    if any(item.get(key) != sha256(path) for key, path in files.items()):
+                        raise ValueError(f'{name} evidence does not match merged provenance')
+                    duration += int((shard / f'{name}.milliseconds').read_text().strip())
+                if duration != int((group_dir / 'coverage.milliseconds').read_text().strip()):
+                    raise ValueError('coverage shard durations do not sum to the sample time')
     output.mkdir(parents=True, exist_ok=False)
     for group, samples in GROUPS.items():
         group_dir = directory / f'release-quality-group-{head}-{group}'
@@ -88,10 +108,10 @@ def main():
     root = Path.cwd()
     if len(sys.argv) == 4 and sys.argv[1] == 'write' and sys.argv[2] in WRITABLE_GROUPS:
         write(sys.argv[2], Path(sys.argv[3]), root)
-    elif len(sys.argv) == 4 and sys.argv[1] == 'verify':
-        verify(Path(sys.argv[2]), Path(sys.argv[3]), candidate(), root)
+    elif len(sys.argv) in (4, 5) and sys.argv[1] == 'verify' and (len(sys.argv) == 4 or sys.argv[4] == '--require-coverage-shards'):
+        verify(Path(sys.argv[2]), Path(sys.argv[3]), candidate(), root, require_coverage_shards=len(sys.argv) == 5)
     else:
-        raise ValueError('usage: release-quality-groups.py write GROUP DIR | verify GROUP_DIR OUTPUT_DIR')
+        raise ValueError('usage: release-quality-groups.py write GROUP DIR | verify GROUP_DIR OUTPUT_DIR [--require-coverage-shards]')
 
 
 if __name__ == '__main__':

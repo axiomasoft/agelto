@@ -94,6 +94,32 @@ class ReleaseQualityGroupsTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'clean worktree'):
                 groups.write('profile', group_dir, self.root)
 
+    def test_требует_и_проверяет_происхождение_каждого_шарда_покрытия(self):
+        with self.assertRaisesRegex(ValueError, 'shard provenance missing'):
+            groups.verify(self.evidence, self.output, self.head, self.root, require_coverage_shards=True)
+        records = []
+        for name in groups.SHARDS:
+            shard = self.evidence / f'release-quality-group-{self.head}-{name}'
+            shard.mkdir()
+            (shard / f'{name}.xml').write_text('<testsuites><testcase name="ok" assertions="1"/></testsuites>')
+            (shard / f'{name}.php').write_text('<?php return [];')
+            (shard / f'{name}.milliseconds').write_text('100')
+            (shard / f'provenance-{name}.json').write_text('{}')
+            records.append({'group': name, 'junit_sha256': groups.sha256(shard / f'{name}.xml'),
+                            'coverage_sha256': groups.sha256(shard / f'{name}.php'),
+                            'duration_sha256': groups.sha256(shard / f'{name}.milliseconds'),
+                            'provenance_sha256': groups.sha256(shard / f'provenance-{name}.json')})
+        coverage = self.evidence / f'release-quality-group-{self.head}-coverage'
+        proof_path = coverage / 'provenance-coverage.json'
+        proof = json.loads(proof_path.read_text())
+        proof['coverage_shards'] = records
+        proof_path.write_text(json.dumps(proof))
+        (coverage / 'coverage.milliseconds').write_text('400')
+        groups.verify(self.evidence, self.output, self.head, self.root, require_coverage_shards=True)
+        (self.evidence / f'release-quality-group-{self.head}-coverage-2/coverage-2.php').write_text('tampered')
+        with self.assertRaisesRegex(ValueError, 'does not match merged provenance'):
+            groups.verify(self.evidence, self.root / 'tampered', self.head, self.root, require_coverage_shards=True)
+
 
 if __name__ == '__main__':
     unittest.main()

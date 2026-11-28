@@ -105,6 +105,7 @@ assert 'merge-coverage-shards.py' in jobs['coverage-merge']
 assert 'check-coverage-floor.py' in jobs['coverage-merge']
 assert 'check-sample-budget.py' in jobs['coverage-merge']
 assert 'release-quality-groups.py verify' in jobs['release-quality']
+assert '--require-coverage-shards' in jobs['release-quality']
 assert 'check-release-quality.py' in jobs['release-quality']
 for step in ('ci-contract.sh', 'unittest discover -s docker/tests/process-core', 'pint --test', 'phpstan analyse'):
     assert step in jobs['preflight'], f'preflight must run {step}'
