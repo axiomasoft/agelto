@@ -213,7 +213,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [serial, profile, coverage-1, coverage-2, coverage-3, coverage-4, random, selected]
+        group: [serial, profile, random, selected]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -252,9 +252,56 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-  release-quality:
-    name: Release quality and coverage evidence
-    needs: [preflight, release-samples]
+  coverage-shards:
+    name: Coverage shard (${{ matrix.shard }}/4)
+    needs: preflight
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'release'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-core-test
+      - name: Collect one complete coverage shard
+        env:
+          PROCESS_CORE_RELEASE_GROUP: coverage-${{ matrix.shard }}
+        run: make core-test-release-sample
+      - name: Stage this shard's evidence
+        shell: bash
+        env:
+          COVERAGE_SHARD: ${{ matrix.shard }}
+        run: |
+          python3 - <<'PY'
+          import os, shutil
+          from pathlib import Path
+          group = 'coverage-' + os.environ['COVERAGE_SHARD']
+          proofs = list(Path('storage/app/testing/process-core/reports').glob('*/release-quality/provenance-' + group + '.json'))
+          if len(proofs) != 1:
+              raise SystemExit(f'Expected one {group} proof, found {len(proofs)}')
+          shutil.copytree(proofs[0].parent, Path('ci-artifacts/coverage-shard'))
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-quality-group-${{ github.sha }}-coverage-${{ matrix.shard }}
+          path: ci-artifacts/coverage-shard/
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: coverage-shard-failure-${{ github.sha }}-${{ matrix.shard }}
+          path: storage/app/testing/process-core/reports/
+          if-no-files-found: warn
+          retention-days: 14
+
+  coverage-merge:
+    name: Merge coverage and check floors
+    needs: [preflight, coverage-shards]
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'release'
     runs-on: ubuntu-26.04
     timeout-minutes: 15
@@ -266,11 +313,35 @@ jobs:
       - uses: ./.github/actions/setup-core-test
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
+          pattern: release-quality-group-${{ github.sha }}-coverage-*
+          path: ci-artifacts/release-quality-groups
+      - name: Merge shards and check unchanged coverage floors
+        run: |
+          python3 docker/scripts/merge-coverage-shards.py ci-artifacts/release-quality-groups
+          python3 docker/scripts/check-coverage-floor.py tests/performance-budget.json "ci-artifacts/release-quality-groups/release-quality-group-$GITHUB_SHA-coverage/coverage-clover.xml"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-quality-group-${{ github.sha }}-coverage
+          path: ci-artifacts/release-quality-groups/release-quality-group-${{ github.sha }}-coverage/
+          if-no-files-found: error
+          retention-days: 14
+
+  release-quality:
+    name: Release quality and coverage evidence
+    needs: [preflight, release-samples, coverage-merge]
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'release'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
           pattern: release-quality-group-${{ github.sha }}-*
           path: ci-artifacts/release-quality-groups
       - name: Verify all 13 samples and enforce coverage and time budgets
         run: |
-          python3 docker/scripts/merge-coverage-shards.py ci-artifacts/release-quality-groups
           python3 docker/scripts/release-quality-groups.py verify ci-artifacts/release-quality-groups ci-artifacts/release-quality
           python3 docker/scripts/check-release-quality.py \
             --budget tests/performance-budget.json \
@@ -472,7 +543,7 @@ jobs:
   ci-gate:
     name: CI gate
     if: always()
-    needs: [changes, preflight, quality, tests, release-samples, release-quality, faults, load, e2e, build-security]
+    needs: [changes, preflight, quality, tests, release-samples, coverage-shards, coverage-merge, release-quality, faults, load, e2e, build-security]
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
@@ -487,7 +558,7 @@ jobs:
               print(f"{name}: {result}")
           required = {"changes"}
           if os.environ["GITHUB_EVENT_NAME"] in {"schedule", "workflow_dispatch", "release"}:
-              required.update({"preflight", "release-samples", "release-quality", "faults", "load", "e2e", "build-security"})
+              required.update({"preflight", "release-samples", "coverage-shards", "coverage-merge", "release-quality", "faults", "load", "e2e", "build-security"})
           bad = {name for name, result in results.items() if result not in ("success", "skipped")}
           bad.update(name for name in required if results.get(name) != "success")
           if bad:

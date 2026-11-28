@@ -69,12 +69,12 @@ ci = (workflows / 'ci.yml').read_text()
 tia = (workflows / 'tia-baseline.yml').read_text()
 jobs = dict(re.findall(r'^  ([a-z][a-z0-9-]+):\n((?:^ {4,}.*\n|^\n)*)', ci.split('jobs:\n', 1)[1], re.M))
 for name, target in {'quality': 'core-quality', 'tests': 'core-test-shard',
-                     'release-samples': 'core-test-release-sample', 'faults': 'core-test-faults',
+                     'release-samples': 'core-test-release-sample', 'coverage-shards': 'core-test-release-sample', 'faults': 'core-test-faults',
                      'load': 'core-test-load'}.items():
     assert './.github/actions/setup-core-test' in jobs[name], f'{name} must boot the isolated rig'
     assert f'run: make {target}' in jobs[name], f'{name} must run {target}'
 for event in ('schedule', 'workflow_dispatch', 'release'):
-    for name in ('release-samples', 'release-quality', 'load'):
+    for name in ('release-samples', 'coverage-shards', 'coverage-merge', 'release-quality', 'load'):
         condition = re.search(r'^    if: (.*)$', jobs[name], re.M).group(1)
         assert f"github.event_name == '{event}'" in condition
         assert "'pull_request'" not in condition and "'push'" not in condition
@@ -90,13 +90,17 @@ browser_filter = jobs['changes'].split('            browser:\n', 1)[1].split('  
 assert "'docker/tests/clean-install-e2e.sh'" in browser_filter
 for name in ('quality', 'tests', 'faults', 'e2e'):
     assert re.search(r'^    needs: \[changes, preflight\]$', jobs[name], re.M), f'{name} must wait for preflight'
-for name in ('release-samples', 'load'):
+for name in ('release-samples', 'coverage-shards', 'load'):
     assert re.search(r'^    needs: preflight$', jobs[name], re.M), f'{name} must wait for preflight'
-assert re.search(r'^    needs: \[preflight, release-samples\]$', jobs['release-quality'], re.M)
-assert 'group: [serial, profile, coverage-1, coverage-2, coverage-3, coverage-4, random, selected]' in jobs['release-samples']
+assert re.search(r'^    needs: \[preflight, coverage-shards\]$', jobs['coverage-merge'], re.M)
+assert re.search(r'^    needs: \[preflight, release-samples, coverage-merge\]$', jobs['release-quality'], re.M)
+assert 'group: [serial, profile, random, selected]' in jobs['release-samples']
 assert 'PROCESS_CORE_RELEASE_GROUP: ${{ matrix.group }}' in jobs['release-samples']
-assert './.github/actions/setup-core-test' in jobs['release-quality']
-assert 'merge-coverage-shards.py' in jobs['release-quality']
+assert 'PROCESS_CORE_RELEASE_GROUP: coverage-${{ matrix.shard }}' in jobs['coverage-shards']
+assert 'shard: [1, 2, 3, 4]' in jobs['coverage-shards']
+assert './.github/actions/setup-core-test' in jobs['coverage-merge']
+assert 'merge-coverage-shards.py' in jobs['coverage-merge']
+assert 'check-coverage-floor.py' in jobs['coverage-merge']
 assert 'release-quality-groups.py verify' in jobs['release-quality']
 assert 'check-release-quality.py' in jobs['release-quality']
 for step in ('ci-contract.sh', 'unittest discover -s docker/tests/process-core', 'pint --test', 'phpstan analyse'):
@@ -118,7 +122,7 @@ def check_gate(event, statuses, success):
 
 for event in ('schedule', 'release', 'workflow_dispatch'):
     check_gate(event, release, True)
-for name in ('changes', 'preflight', 'release-samples', 'release-quality', 'faults', 'load', 'e2e', 'build-security'):
+for name in ('changes', 'preflight', 'release-samples', 'coverage-shards', 'coverage-merge', 'release-quality', 'faults', 'load', 'e2e', 'build-security'):
     check_gate('workflow_dispatch', {**release, name: 'skipped'}, False)
 check_gate('pull_request', {**release, 'load': 'skipped'}, True)
 for status in ('failure', 'cancelled'):
