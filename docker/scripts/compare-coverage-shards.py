@@ -29,6 +29,21 @@ def statements(path):
     return result
 
 
+def metrics(path):
+    root = ET.parse(path).getroot()
+    project = root.find('./project/metrics')
+    if project is None:
+        raise ValueError(f'no project coverage metrics in {path}')
+    files = {}
+    for file in root.findall('.//file'):
+        item = file.find('metrics')
+        name = file.get('name')
+        if item is None or not name or name in files:
+            raise ValueError(f'invalid file coverage metrics in {path}')
+        files[name] = dict(item.attrib)
+    return dict(project.attrib), files
+
+
 def compare(reference, sharded):
     if quality.normalized_junit(reference / 'coverage.xml') != quality.normalized_junit(sharded / 'coverage.xml'):
         raise ValueError('coverage shard test identities differ from the full run')
@@ -37,6 +52,8 @@ def compare(reference, sharded):
     different = [key for key in expected.keys() | actual.keys() if expected.get(key) != actual.get(key)]
     if different:
         raise ValueError(f'coverage differs for {len(different)} statements: {different[:10]}')
+    if metrics(reference / 'coverage-clover.xml') != metrics(sharded / 'coverage-clover.xml'):
+        raise ValueError('coverage metrics differ')
     print(f'coverage matches: {len(expected)} statements')
 
 

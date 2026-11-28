@@ -17,13 +17,18 @@ class CompareCoverageShardsTest(unittest.TestCase):
             reference.mkdir()
             sharded.mkdir()
             junit = '<testsuites><testcase classname="C" name="A" assertions="1"/></testsuites>'
-            clover = '<coverage><project><file name="/app/A.php"><line num="2" type="stmt" count="1"/></file></project></coverage>'
+            clover = ('<coverage><project><file name="/app/A.php"><line num="2" type="stmt" count="1"/>'
+                      '<metrics statements="1" coveredstatements="1"/></file>'
+                      '<metrics statements="1" coveredstatements="1"/></project></coverage>')
             for directory in (reference, sharded):
                 (directory / 'coverage.xml').write_text(junit)
                 (directory / 'coverage-clover.xml').write_text(clover)
             compare.compare(reference, sharded)
             (sharded / 'coverage-clover.xml').write_text(clover.replace('count="1"', 'count="0"'))
             with self.assertRaisesRegex(ValueError, 'coverage differs'):
+                compare.compare(reference, sharded)
+            (sharded / 'coverage-clover.xml').write_text(clover.replace('coveredstatements="1"', 'coveredstatements="0"'))
+            with self.assertRaisesRegex(ValueError, 'coverage metrics differ'):
                 compare.compare(reference, sharded)
             (sharded / 'coverage-clover.xml').write_text(clover)
             (sharded / 'coverage.xml').write_text(junit.replace('name="A"', 'name="B"'))
