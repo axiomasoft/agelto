@@ -28,8 +28,13 @@ use App\Services\Procurement\Process\Contracts\StageHandler;
 
 final readonly class DetailHandler implements StageHandler
 {
-    public function __construct(private DetailSnapshotRepository $store, private DetailPartsSource $source,
-        private DetailArtifacts $artifacts, private FetchOutcomeBridge $bridge) {}
+    public function __construct(
+        private DetailSnapshotRepository $store,
+        private DetailPartsSource $source,
+        private DetailArtifacts $artifacts,
+        private FetchOutcomeBridge $bridge,
+        private ?string $activeRulesHash = null,
+    ) {}
 
     public function execute(WorkInput $input, ExecutionContext $execution): StageOutcome
     {
@@ -37,9 +42,12 @@ final readonly class DetailHandler implements StageHandler
             throw new \InvalidArgumentException('Detail input required.');
         }
         $request = $this->store->request($input->procurementId, $input->intentId);
-        $progress = $execution->lease()->checkpoint->stageProgress ?? new DetailProgress;
+        $progress = $execution->lease()->checkpoint->stageProgress ?? new DetailProgress(rulesHash: $this->activeRulesHash);
         if (! $progress instanceof DetailProgress) {
             throw new \LogicException('Invalid detail progress.');
+        }
+        if ($progress->parts !== [] && $progress->rulesHash !== null && $this->activeRulesHash !== null && $progress->rulesHash !== $this->activeRulesHash) {
+            $progress = new DetailProgress(parts: [], pass: $progress->pass, failures: 0, rulesHash: $this->activeRulesHash);
         }
         $parts = $this->partNames($this->source->parts($request));
         if (array_diff(array_keys($progress->parts), $parts) !== []) {
@@ -65,14 +73,14 @@ final readonly class DetailHandler implements StageHandler
                 throw new \LogicException('Detail identity mismatch.');
             }
             if (! $snapshot->complete()) {
-                $progress = new DetailProgress($progress->parts, $progress->pass, $progress->failures + 1);
+                $progress = new DetailProgress($progress->parts, $progress->pass, $progress->failures + 1, rulesHash: $this->activeRulesHash ?? $progress->rulesHash);
                 $execution->checkpoint($progress);
 
                 return $progress->failures === 3 ? new StageBlocked(BlockedReason::PolicyReview)
                     : new StagePartial($progress, new MissingParts([$part]));
             }
             $ref = $this->artifacts->put($snapshot);
-            $progress = new DetailProgress([...$progress->parts, $part => $ref], $progress->pass, $progress->failures);
+            $progress = new DetailProgress([...$progress->parts, $part => $ref], $progress->pass, $progress->failures, rulesHash: $this->activeRulesHash ?? $progress->rulesHash);
             $execution->checkpoint($progress);
             $snapshots[] = $snapshot;
         }
@@ -92,12 +100,12 @@ final readonly class DetailHandler implements StageHandler
         }
         if (! $stable) {
             if ($progress->pass === 3) {
-                $execution->checkpoint(new DetailProgress($progress->parts, $progress->pass, $progress->failures, SnapshotConsistency::Unstable));
+                $execution->checkpoint(new DetailProgress($progress->parts, $progress->pass, $progress->failures, SnapshotConsistency::Unstable, rulesHash: $this->activeRulesHash ?? $progress->rulesHash));
 
                 return new StageBlocked(BlockedReason::PolicyReview);
             }
 
-            return new StagePartial(new DetailProgress(pass: $progress->pass + 1), new MissingParts($parts));
+            return new StagePartial(new DetailProgress(pass: $progress->pass + 1, rulesHash: $this->activeRulesHash ?? $progress->rulesHash), new MissingParts($parts));
         }
 
         // The fresh control can carry the price even if the saved common-info predates this field.

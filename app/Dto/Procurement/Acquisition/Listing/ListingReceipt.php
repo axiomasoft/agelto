@@ -16,37 +16,46 @@ final readonly class ListingReceipt
      * @param  list<ListingDetailReference>  $details
      */
     public function __construct(public ContentHash $identities, public array $observations, public string $outcome, public ?string $reason = null,
-        public bool $uninterrupted = true, public array $details = [])
+        public bool $uninterrupted = true, public array $details = [], public ?string $rulesHash = null)
     {
         CollectionGuard::check($observations, ContentHash::class, 1000);
         CollectionGuard::check($details, ListingDetailReference::class, 1000);
         if (! in_array($outcome, ['page', 'pass', 'split', 'observed', 'complete', 'incomplete'], true)
-            || (($outcome === 'incomplete') !== ($reason !== null))) {
+            || (($outcome === 'incomplete') !== ($reason !== null))
+            || ($rulesHash !== null && preg_match('/^[0-9a-f]{64}$/D', $rulesHash) !== 1)) {
             throw new \InvalidArgumentException('Invalid listing receipt.');
         }
     }
 
     /** @param list<ListingDetailReference> $details */
-    public static function page(ListingPage $page, string $outcome, ?string $reason = null, bool $uninterrupted = true, array $details = []): self
+    public static function page(ListingPage $page, string $outcome, ?string $reason = null, bool $uninterrupted = true, array $details = [], ?string $rulesHash = null): self
     {
-        return new self($page->summaries->digest(false), array_map(static fn (ProcurementSummary $s): ContentHash => ContentHash::of(json_encode([$s->identity->toArray(), $s->sourceRevision, $s->fingerprint->hex], JSON_THROW_ON_ERROR)), $page->summaries->items), $outcome, $reason, $uninterrupted, $details);
+        return new self($page->summaries->digest(false), array_map(static fn (ProcurementSummary $s): ContentHash => ContentHash::of(json_encode([$s->identity->toArray(), $s->sourceRevision, $s->fingerprint->hex], JSON_THROW_ON_ERROR)), $page->summaries->items), $outcome, $reason, $uninterrupted, $details, $rulesHash);
     }
 
     public function json(): string
     {
         return json_encode(['identities' => $this->identities->hex, 'observations' => array_map(static fn (ContentHash $h): string => $h->hex, $this->observations),
             'outcome' => $this->outcome, 'reason' => $this->reason, 'uninterrupted' => $this->uninterrupted,
-            'details' => array_map(static fn (ListingDetailReference $d): string => $d->json(), $this->details)], JSON_THROW_ON_ERROR);
+            'details' => array_map(static fn (ListingDetailReference $d): string => $d->json(), $this->details),
+            'rulesHash' => $this->rulesHash], JSON_THROW_ON_ERROR);
     }
 
     public static function fromJson(string $json): self
     {
         $v = json_decode($json, true, 8, JSON_THROW_ON_ERROR);
-        if (! is_array($v) || count($v) !== 6 || ! is_array($v['details'] ?? null) || ! array_is_list($v['details']) || count($v['details']) > 1000
+        if (! is_array($v) || ! in_array(count($v), [6, 7], true) || ! is_array($v['details'] ?? null) || ! array_is_list($v['details']) || count($v['details']) > 1000
             || ! is_bool($v['uninterrupted'] ?? null) || ! is_string($v['identities'] ?? null) || ! is_array($v['observations'] ?? null)
             || ! array_is_list($v['observations']) || ! is_string($v['outcome'] ?? null) || ! array_key_exists('reason', $v)
             || ($v['reason'] !== null && ! is_string($v['reason']))) {
             throw new \InvalidArgumentException('Invalid listing receipt schema.');
+        }
+        $rulesHash = null;
+        if (array_key_exists('rulesHash', $v)) {
+            if ($v['rulesHash'] !== null && ! is_string($v['rulesHash'])) {
+                throw new \InvalidArgumentException('Invalid listing receipt rules hash.');
+            }
+            $rulesHash = $v['rulesHash'];
         }
         $hashes = [];
         foreach ($v['observations'] as $hash) {
@@ -64,6 +73,6 @@ final readonly class ListingReceipt
             $details[] = ListingDetailReference::fromJson($detail);
         }
 
-        return new self(new ContentHash($v['identities']), $hashes, $v['outcome'], $v['reason'], $v['uninterrupted'], $details);
+        return new self(new ContentHash($v['identities']), $hashes, $v['outcome'], $v['reason'], $v['uninterrupted'], $details, $rulesHash);
     }
 }

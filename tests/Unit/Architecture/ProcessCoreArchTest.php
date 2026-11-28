@@ -91,3 +91,20 @@ test('analysis storage lock membership belongs to the typed subject composition 
         expect($resolver->requiresAnalysisStorageLocks($stage))->toBe(in_array($stage->value, ['screening', 'extraction', 'publication'], true));
     }
 });
+
+test('все DTO и value-типы правил парсинга имеют strict_types и final readonly классы', function (): void {
+    $count = 0;
+    foreach (Finder::create()->files()->in(app_path('Dto/Procurement/Parsing'))->name('*.php') as $file) {
+        $content = $file->getContents();
+        expect($content)->toContain('declare(strict_types=1);');
+
+        $class = 'App\Dto\Procurement\Parsing\\'.str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname());
+        $reflection = new ReflectionClass($class);
+        if (! $reflection->isInterface()) {
+            expect($reflection->isFinal())->toBeTrue()
+                ->and($reflection->isReadOnly())->toBeTrue();
+        }
+        $count++;
+    }
+    expect($count)->toBeGreaterThan(0);
+});

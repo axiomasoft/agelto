@@ -28,8 +28,14 @@ use App\Services\Procurement\Process\Contracts\StageHandler;
 /** One bounded page per work. Composition supplies the registered platform capability. No DB writes or network in a transaction. */
 final readonly class ListingHandler implements StageHandler
 {
-    public function __construct(private ListingStoreRepository $store, private ListingSource $source,
-        private ListingPartitioner $partitioner, private ListingFilterCodec $filters, private FetchOutcomeBridge $bridge) {}
+    public function __construct(
+        private ListingStoreRepository $store,
+        private ListingSource $source,
+        private ListingPartitioner $partitioner,
+        private ListingFilterCodec $filters,
+        private FetchOutcomeBridge $bridge,
+        private ?string $activeRulesHash = null,
+    ) {}
 
     public function execute(WorkInput $input, ExecutionContext $execution): StageOutcome
     {
@@ -53,13 +59,13 @@ final readonly class ListingHandler implements StageHandler
             $split = $this->partitioner->split(cursor: $task->rootCursor,
                 allocatedPartitions: $this->store->allocatedPartitions($input->crawlBlockId));
 
-            return new StageSucceeded(new ListingResult(task: $task, page: $page, split: $split));
+            return new StageSucceeded(new ListingResult(task: $task, page: $page, split: $split, activeRulesHash: $this->activeRulesHash));
         }
         if (! $page->assessment->usable()) {
             // Invalid response cannot advance cursor or masquerade as a completed page.
             return new StageBlocked(BlockedReason::HandlerHold);
         }
 
-        return new StageSucceeded(new ListingResult($task, $page));
+        return new StageSucceeded(new ListingResult($task, $page, activeRulesHash: $this->activeRulesHash));
     }
 }

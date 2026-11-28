@@ -168,6 +168,9 @@ final readonly class DetailValueCodec
         if ((! in_array($type, self::TYPES, true) && ! in_array($type, $this->extensionTypes, true)) || ! is_array($data)) {
             throw new \InvalidArgumentException('Unregistered detail type.');
         }
+        if ($type === DetailProgress::class) {
+            $data += ['rulesHash' => null];
+        }
         if (! class_exists($type)) {
             throw new \InvalidArgumentException('Missing detail type.');
         }

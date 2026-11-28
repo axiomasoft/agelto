@@ -4,13 +4,21 @@ declare(strict_types=1);
 
 namespace App\Services\Platforms\Eis\Csv;
 
+use App\Dto\Procurement\Parsing\Rules\CsvDialectRule;
 use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
 use App\Exceptions\Procurement\Crawler\SourceResponseLimitExceeded;
+use App\Services\Platforms\Eis\EisDefaultParsingRules;
+use App\Services\Procurement\Platform\Contracts\TabularReader;
 
 /** Strict CSV records: quoted newlines and doubled quotes are data, never record boundaries. */
 final readonly class EisCsvParser
 {
     private const int READ_BYTES = 64 * 1024;
+
+    public function __construct(
+        private ?TabularReader $reader = null,
+        private ?CsvDialectRule $dialect = null,
+    ) {}
 
     private static function assertTime(?float $deadlineAt): void
     {
@@ -42,7 +50,13 @@ final readonly class EisCsvParser
      */
     public function parseBatch(string $body, ?float $deadlineAt = null, int $maxRecords = 1000, int $maxFieldBytes = 262_144, ?\Closure $tick = null): array
     {
-        if (substr_count($body, ';') > 128_000) {
+        $dialect = $this->dialect ?? EisDefaultParsingRules::listing()->csvDialect;
+
+        if ($this->reader !== null && $dialect !== null) {
+            return $this->parseBatchViaReader($body, $dialect, $deadlineAt, $maxRecords, $maxFieldBytes, $tick);
+        }
+
+        if (substr_count($body, $dialect !== null ? $dialect->delimiter : ';') > 128_000) {
             throw new SourceResponseLimitExceeded('CSV separator count exceeds the resource limit.');
         }
         $stream = fopen('php://temp', 'w+');
@@ -99,6 +113,70 @@ final readonly class EisCsvParser
         } finally {
             fclose($stream);
         }
+    }
+
+    /**
+     * @param  (\Closure(): void)|null  $tick
+     * @return array{rows: list<array<string, string>>, records: int, malformed: int, header: list<string>|null}
+     */
+    private function parseBatchViaReader(
+        string $body,
+        CsvDialectRule $dialect,
+        ?float $deadlineAt,
+        int $maxRecords,
+        int $maxFieldBytes,
+        ?\Closure $tick,
+    ): array {
+        $tick?->__invoke();
+        self::assertTime($deadlineAt);
+
+        if (substr_count($body, $dialect->delimiter) > 128_000) {
+            throw new SourceResponseLimitExceeded('CSV separator count exceeds the resource limit.');
+        }
+
+        $parsed = $this->reader?->read($body, $dialect) ?? ['headers' => [], 'rows' => []];
+        $headers = $parsed['headers'];
+
+        if ($headers === []) {
+            return ['rows' => [], 'records' => 0, 'malformed' => 0, 'header' => null];
+        }
+
+        if (in_array('', $headers, true) || count(array_unique($headers)) !== count($headers)) {
+            throw new \UnexpectedValueException('Invalid EIS CSV header.');
+        }
+
+        if (count($headers) > 256) {
+            throw new SourceResponseLimitExceeded('CSV column count exceeds the resource limit.');
+        }
+
+        $rows = [];
+        $records = 0;
+        $malformed = 0;
+
+        foreach ($parsed['rows'] as $values) {
+            self::assertTime($deadlineAt);
+            $records++;
+
+            if ($records > $maxRecords) {
+                throw new SourceResponseLimitExceeded('CSV record count exceeds the configured limit.');
+            }
+
+            if (count($values) !== count($headers)) {
+                $malformed++;
+
+                continue;
+            }
+
+            foreach ($values as $value) {
+                if (strlen($value) > $maxFieldBytes) {
+                    throw new SourceResponseLimitExceeded('CSV field exceeds the configured byte limit.');
+                }
+            }
+
+            $rows[] = array_combine($headers, $values);
+        }
+
+        return ['rows' => $rows, 'records' => $records, 'malformed' => $malformed, 'header' => $headers];
     }
 
     /**

@@ -76,6 +76,9 @@ function declaredAdminRouteExtensions(): array
         ['procurement/process/incidents', 'filament.admin.resources.procurement.process.incidents.index', 'App\Filament\Resources\Procurement\Process\Incidents\Pages\ListIncidents'],
         ['procurement/process/runs/process-runs', 'filament.admin.resources.procurement.process.runs.process-runs.index', 'App\Filament\Resources\Procurement\Process\Runs\Pages\ListProcessRuns'],
         ['procurement/process/work/work-items', 'filament.admin.resources.procurement.process.work.work-items.index', 'App\Filament\Resources\Procurement\Process\Work\Pages\ListWorkItems'],
+        ['procurement/platform/parsing-rule-sets', 'filament.admin.resources.procurement.platform.parsing-rule-sets.index', 'App\Filament\Resources\Procurement\Platform\ParsingRuleSets\Pages\ListParsingRuleSets'],
+        ['procurement/platform/parsing-rule-sets/create', 'filament.admin.resources.procurement.platform.parsing-rule-sets.create', 'App\Filament\Resources\Procurement\Platform\ParsingRuleSets\Pages\CreateParsingRuleSet'],
+        ['procurement/platform/parsing-rule-sets/{record}', 'filament.admin.resources.procurement.platform.parsing-rule-sets.view', 'App\Filament\Resources\Procurement\Platform\ParsingRuleSets\Pages\ViewParsingRuleSet'],
     ];
 
     return array_map(
@@ -112,7 +115,7 @@ test('runtime admin routes exactly match committed resource and role matrix', fu
     usort($runtimeRoutes, static fn (array $a, array $b): int => [$a['uri'], $a['name']] <=> [$b['uri'], $b['name']]);
 
     expect($runtimeRoutes)
-        ->toHaveCount(66)
+        ->toHaveCount(69)
         ->toEqual($matrixRoutes)
         ->and(array_column($runtimeRoutes, 'name'))
         ->toHaveCount(count(array_unique(array_column($runtimeRoutes, 'name'))));

@@ -149,7 +149,8 @@ final readonly class ListingStoreRepository
 
     public function storeTask(ProcessUuid $crawlRun, ProcessUuid $id, ?ProcessUuid $parent, ListingTask $task): ListingInput
     {
-        $this->crawl->storeCrawlBlock($id, $crawlRun, $parent, 'listing:'.$task->rootBlockId->value.':'.$task->pass.':'.$task->page,
+        $epochSuffix = $task->ruleEpoch > 0 ? ':e'.$task->ruleEpoch : '';
+        $this->crawl->storeCrawlBlock($id, $crawlRun, $parent, 'listing:'.$task->rootBlockId->value.$epochSuffix.':'.$task->pass.':'.$task->page,
             new VersionedPayload($task->json(), 1));
         $row = LedgerRow::one("SELECT encode(filter_hash,'hex') AS filter_hash, encode(access_policy_hash,'hex') AS access_hash,
             adapter_version FROM prc_crawl_runs WHERE id=?", [$crawlRun->value]) ?? throw new \LogicException('Missing crawl run.');
@@ -163,8 +164,9 @@ final readonly class ListingStoreRepository
         $rows = LedgerRow::all("SELECT terminal_proof::text AS proof FROM prc_crawl_blocks
             WHERE crawl_run_id=(SELECT crawl_run_id FROM prc_crawl_blocks WHERE id=?)
               AND partition_payload->>'rootBlockId'=? AND (partition_payload->>'pass')::int=?
+              AND COALESCE((partition_payload->>'ruleEpoch')::int, 0)=?
               AND terminal_proof IS NOT NULL ORDER BY (partition_payload->>'page')::int LIMIT 13",
-            [$task->rootBlockId->value, $task->rootBlockId->value, $task->pass]);
+            [$task->rootBlockId->value, $task->rootBlockId->value, $task->pass, $task->ruleEpoch]);
         if (count($rows) > 12) {
             throw new \LogicException('Listing page bound exceeded.');
         }

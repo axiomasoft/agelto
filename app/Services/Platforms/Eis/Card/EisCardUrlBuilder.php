@@ -5,14 +5,20 @@ declare(strict_types=1);
 namespace App\Services\Platforms\Eis\Card;
 
 use App\Dto\Platforms\Eis\EisCardRoutes;
+use App\Dto\Procurement\Parsing\Rules\CardRoutesRule;
 use App\Exceptions\Platforms\Eis\CardUrlTemplateMissingException;
+use App\Services\Procurement\Platform\Contracts\CardUrlRouter;
 
 /** Pure typed card route catalogue; no mutable registry settings lookup. */
 final readonly class EisCardUrlBuilder
 {
     private const string REG_NUMBER_PLACEHOLDER = '{regNumber}';
 
-    public function __construct(private EisCardRoutes $routes) {}
+    public function __construct(
+        private EisCardRoutes $routes,
+        private ?CardUrlRouter $router = null,
+        private ?CardRoutesRule $routesRule = null,
+    ) {}
 
     /**
      * @return non-empty-string сегмент типа процедуры в URL карточки (`ea20`/`zk20`/…)
@@ -53,6 +59,17 @@ final readonly class EisCardUrlBuilder
 
         $template = $templates[$procedureUrlType][$tab];
 
-        return $template === null ? null : str_replace(self::REG_NUMBER_PLACEHOLDER, rawurlencode($registryNumber), $template);
+        if ($template === null) {
+            return null;
+        }
+
+        if ($this->router !== null && $this->routesRule !== null) {
+            $routed = $this->router->buildUrl($this->routesRule, $tab, 'https://zakupki.gov.ru', $registryNumber);
+            if ($routed !== null) {
+                return str_replace('{type}', $procedureUrlType, $routed);
+            }
+        }
+
+        return str_replace(self::REG_NUMBER_PLACEHOLDER, rawurlencode($registryNumber), $template);
     }
 }

@@ -9,7 +9,13 @@ use App\Dto\Procurement\Details\CommonInfoData;
 use App\Dto\Procurement\Details\CommonInfoSnapshot;
 use App\Dto\Procurement\Details\FinancingRowData;
 use App\Dto\Procurement\Details\PurchaseItemRowData;
+use App\Dto\Procurement\Parsing\Extraction\DriftSignal;
+use App\Dto\Procurement\Parsing\Rules\DetailRuleSetDto;
 use App\Enums\Procurement\DetailSnapshotStatus;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Services\Platforms\Eis\EisDefaultParsingRules;
+use App\Services\Procurement\Platform\Contracts\DomExtractor;
+use App\Services\Procurement\Platform\Contracts\DriftCollector;
 use Symfony\Component\DomCrawler\Crawler;
 
 /**
@@ -34,26 +40,51 @@ final readonly class CommonInfoParser
 
     private const string TERM_FINANCING_TOTAL = 'Финансовое обеспечение закупки (всего)';
 
+    public function __construct(
+        private ?DetailRuleSetDto $rules = null,
+        private ?DomExtractor $dom = null,
+        private ?DriftCollector $drift = null,
+    ) {}
+
     public function parse(string $html, bool $strict = false): CommonInfoSnapshot
     {
         try {
+            $rules = $this->rules ?? EisDefaultParsingRules::detail();
+            $aliases = $rules->commonInfo !== null ? $rules->commonInfo->fieldAliases : [];
+            $termIkz = $aliases['ikz'][0] ?? self::TERM_IKZ;
+            $termEtpName = $aliases['etp_name'][0] ?? self::TERM_ETP_NAME;
+            $termEtpUrl = $aliases['etp_url'][0] ?? self::TERM_ETP_URL;
+            $termContactName = $aliases['contact_name'][0] ?? self::TERM_CONTACT_NAME;
+            $termContactEmail = $aliases['contact_email'][0] ?? self::TERM_CONTACT_EMAIL;
+            $termFinancingTotal = $aliases['financing_total'][0] ?? self::TERM_FINANCING_TOTAL;
+
             $crawler = new Crawler($html);
 
-            $ikz = CardDomHelper::parseIkz($crawler, self::TERM_IKZ, self::IKZ_LENGTH);
-            $etp = CardDomHelper::parseEtp($crawler, self::TERM_ETP_NAME, self::TERM_ETP_URL);
-            $contactPerson = CardDomHelper::parseContactPerson($crawler, self::TERM_CONTACT_NAME, self::TERM_CONTACT_EMAIL);
+            $ikz = CardDomHelper::parseIkz($crawler, $termIkz, self::IKZ_LENGTH);
+            $etp = CardDomHelper::parseEtp($crawler, $termEtpName, $termEtpUrl);
+            $contactPerson = CardDomHelper::parseContactPerson($crawler, $termContactName, $termContactEmail);
             $financingRows = $this->parseFinancingRows(crawler: $crawler, strict: $strict);
             $items = $this->parseItems(crawler: $crawler, strict: $strict);
 
             $this->warnIfBlockInfoSuppressed($crawler, $ikz, $etp, $contactPerson, $financingRows, $items);
 
+            $isComplete = CardDomHelper::hasCompleteCommonInfoContainer(
+                crawler: $crawler,
+                financingTerm: $termFinancingTotal,
+                parsedFinancingRows: count($financingRows),
+                parsedItems: count($items),
+            );
+            if (! $isComplete) {
+                $this->drift?->record(new DriftSignal('common_info_incomplete', StageCode::Detail, $termFinancingTotal));
+            }
+            $initialPrice = $this->parseInitialPrice($crawler);
+            if ($initialPrice === null && $this->dom !== null && $rules->envelope?->priceSelectors !== null) {
+                $xpath = $this->dom->loadHtml($html);
+                $initialPrice = CardDomHelper::normalizeMoney($this->dom->firstText($xpath, $rules->envelope->priceSelectors) ?? '');
+            }
+
             return new CommonInfoSnapshot(
-                status: CardDomHelper::hasCompleteCommonInfoContainer(
-                    crawler: $crawler,
-                    financingTerm: self::TERM_FINANCING_TOTAL,
-                    parsedFinancingRows: count($financingRows),
-                    parsedItems: count($items),
-                )
+                status: $isComplete
                     ? DetailSnapshotStatus::Complete
                     : DetailSnapshotStatus::Incomplete,
                 commonInfo: new CommonInfoData(
@@ -76,7 +107,7 @@ final readonly class CommonInfoParser
                     contactPersonEmail: $contactPerson['email'] ?? null,
                     financingRows: $financingRows,
                     items: $items,
-                    initialPrice: $this->parseInitialPrice($crawler),
+                    initialPrice: $initialPrice,
                 ),
             );
         } catch (\Throwable $exception) {

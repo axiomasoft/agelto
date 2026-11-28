@@ -86,13 +86,20 @@ final readonly class ListingStageCodec implements StagePayloadCodec
             'terminal' => $page->terminalProof->value,
             'next' => $page->nextCursor === null ? null : ListingTask::envelope($page->nextCursor),
             'split' => $result->split === null ? null : ['children' => array_map(ListingTask::envelope(...), $result->split->children),
-                'reason' => $result->split->incompleteReason?->value]], JSON_THROW_ON_ERROR), 3);
+                'reason' => $result->split->incompleteReason?->value],
+            'activeRulesHash' => $result->activeRulesHash], JSON_THROW_ON_ERROR), 3);
     }
 
     public function decodeResult(VersionedPayload $payload): ValidatedStageResult
     {
         $r = $this->reader($payload, 3);
-        $r->keys(['observedAt', 'task', 'summaries', 'rows', 'completeness', 'reason', 'bodyHash', 'confidence', 'artifact', 'terminal', 'next', 'split']);
+        $hasActiveRulesHash = property_exists($r->object, 'activeRulesHash');
+        $expectedKeys = ['observedAt', 'task', 'summaries', 'rows', 'completeness', 'reason', 'bodyHash', 'confidence', 'artifact', 'terminal', 'next', 'split'];
+        if ($hasActiveRulesHash) {
+            $expectedKeys[] = 'activeRulesHash';
+        }
+        $r->keys($expectedKeys);
+        $activeRulesHash = $hasActiveRulesHash && ! $r->isNull('activeRulesHash') ? $r->string('activeRulesHash') : null;
         $items = [];
         foreach ($this->list($r, 'summaries', 1000) as $value) {
             if (! $value instanceof \stdClass) {
@@ -139,7 +146,7 @@ final readonly class ListingStageCodec implements StagePayloadCodec
 
         return new ListingResult(ListingTask::fromJson($r->string('task')), new ListingPage(new ProcurementSummaries($items), $r->integer('rows'),
             new ResponseAssessment(Completeness::from($r->string('completeness')), AssessmentReason::from($r->string('reason')), new ContentHash($r->string('bodyHash')), (float) $confidence, $artifact),
-            TerminalProof::from($r->string('terminal')), $r->isNull('next') ? null : $this->cursor($r->object('next'))), $split, new \DateTimeImmutable($r->string('observedAt')));
+            TerminalProof::from($r->string('terminal')), $r->isNull('next') ? null : $this->cursor($r->object('next'))), $split, new \DateTimeImmutable($r->string('observedAt')), $activeRulesHash);
     }
 
     private function precision(PayloadReader $reader): bool

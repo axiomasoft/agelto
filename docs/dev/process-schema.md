@@ -203,6 +203,7 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_11_25_100001_add_document_repair_ownership.php` | alter | PLAN2:P3.1 | Persist the actual canonical repair attempt and fence recovery from newer repairs. |
 | `2026_11_25_100002_add_attributes_observed_at_to_org_organizations.php` | alter | PLAN2:P5.3 | Record when organization attributes were observed so archive imports preserve newer data. |
 | `2026_11_26_100000_tune_process_tables_autovacuum_and_fillfactor.php` | alter | PLAN1:P2.1 | Tune fillfactor and autovacuum for hot process queue tables with reversible reloptions. |
+| `2026_11_28_100000_create_prc_parsing_rule_tables.php` | create | PARSING:W1 | Create declarative parsing rule sets, immutable rule versions and append-only audit events. |
 
 ### Legacy lifecycle
 
@@ -2269,6 +2270,195 @@ Indexes:
 - `jobs_pkey`: `CREATE UNIQUE INDEX jobs_pkey ON public.jobs USING btree (id)`
 - `jobs_queue_index`: `CREATE INDEX jobs_queue_index ON public.jobs USING btree (queue)`
 
+#### llm_budget_accounts
+
+Owner: P3.9; retention: financial.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| account_id | text / text | NO | text NOT NULL |
+| currency | text / text | NO | text NOT NULL |
+| unknown_count_threshold | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| hard_exposure_cap | numeric / numeric | YES | numeric(24,8) |
+| policy_version | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| policy_actor | text / text | NO | text NOT NULL |
+| policy_reason | text / text | NO | text NOT NULL |
+
+Constraints:
+- `llm_budget_accounts_account_id_key`: `UNIQUE (account_id)`
+- `llm_budget_accounts_currency_check`: `CHECK ((currency ~ '^[A-Z]{3}$'::text))`
+- `llm_budget_accounts_hard_exposure_cap_check`: `CHECK ((hard_exposure_cap >= (0)::numeric))`
+- `llm_budget_accounts_pkey`: `PRIMARY KEY (account_id, currency)`
+- `llm_budget_accounts_policy_version_check`: `CHECK ((policy_version >= 1))`
+- `llm_budget_accounts_unknown_count_threshold_check`: `CHECK ((unknown_count_threshold >= 1))`
+
+Indexes:
+- `llm_budget_accounts_account_id_key`: `CREATE UNIQUE INDEX llm_budget_accounts_account_id_key ON public.llm_budget_accounts USING btree (account_id)`
+- `llm_budget_accounts_pkey`: `CREATE UNIQUE INDEX llm_budget_accounts_pkey ON public.llm_budget_accounts USING btree (account_id, currency)`
+
+#### llm_budget_periods
+
+Owner: P3.9; retention: financial.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| account_id | text / text | NO | text NOT NULL |
+| currency | text / text | NO | text NOT NULL |
+| period_start | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| period_end | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| cap | numeric / numeric | NO | numeric(24,8) NOT NULL |
+| spent | numeric / numeric | NO | numeric(24,8) DEFAULT 0 NOT NULL |
+| reserved | numeric / numeric | NO | numeric(24,8) DEFAULT 0 NOT NULL |
+
+Constraints:
+- `llm_budget_periods_account_id_currency_fkey`: `FOREIGN KEY (account_id, currency) REFERENCES llm_budget_accounts(account_id, currency)`
+- `llm_budget_periods_account_id_currency_period_start_period__key`: `UNIQUE (account_id, currency, period_start, period_end)`
+- `llm_budget_periods_cap_check`: `CHECK ((cap >= (0)::numeric))`
+- `llm_budget_periods_check`: `CHECK ((period_end > period_start))`
+- `llm_budget_periods_check1`: `CHECK (((spent + reserved) <= cap))`
+- `llm_budget_periods_pkey`: `PRIMARY KEY (id)`
+- `llm_budget_periods_reserved_check`: `CHECK ((reserved >= (0)::numeric))`
+- `llm_budget_periods_spent_check`: `CHECK ((spent >= (0)::numeric))`
+
+Indexes:
+- `llm_budget_periods_account_id_currency_period_start_period__key`: `CREATE UNIQUE INDEX llm_budget_periods_account_id_currency_period_start_period__key ON public.llm_budget_periods USING btree (account_id, currency, period_start, period_end)`
+- `llm_budget_periods_pkey`: `CREATE UNIQUE INDEX llm_budget_periods_pkey ON public.llm_budget_periods USING btree (id)`
+
+#### llm_budget_reservations
+
+Owner: P3.9; retention: financial.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| operation_id | uuid / uuid | NO | uuid NOT NULL |
+| period_id | uuid / uuid | NO | uuid NOT NULL |
+| upper_bound | numeric / numeric | NO | numeric(24,8) NOT NULL |
+| state | text / text | NO | text NOT NULL |
+| settled_amount | numeric / numeric | YES | numeric(24,8) |
+| pricing_snapshot | jsonb / jsonb | NO | jsonb NOT NULL |
+| pricing_snapshot_schema_version | smallint / int2 | NO | smallint NOT NULL |
+
+Constraints:
+- `llm_budget_reservations_check`: `CHECK (((state = 'settled'::text) = (settled_amount IS NOT NULL)))`
+- `llm_budget_reservations_check1`: `CHECK (((settled_amount >= (0)::numeric) AND (settled_amount <= upper_bound)))`
+- `llm_budget_reservations_id_operation_id_key`: `UNIQUE (id, operation_id)`
+- `llm_budget_reservations_operation_id_fkey`: `FOREIGN KEY (operation_id) REFERENCES llm_provider_calls(physical_call_id)`
+- `llm_budget_reservations_operation_id_key`: `UNIQUE (operation_id)`
+- `llm_budget_reservations_period_id_fkey`: `FOREIGN KEY (period_id) REFERENCES llm_budget_periods(id)`
+- `llm_budget_reservations_pkey`: `PRIMARY KEY (id)`
+- `llm_budget_reservations_pricing_snapshot_schema_version_check`: `CHECK ((pricing_snapshot_schema_version = 1))`
+- `llm_budget_reservations_state_check`: `CHECK ((state = ANY (ARRAY['reserved'::text, 'settled'::text])))`
+- `llm_budget_reservations_upper_bound_check`: `CHECK ((upper_bound >= (0)::numeric))`
+
+Indexes:
+- `llm_budget_reservations_id_operation_id_key`: `CREATE UNIQUE INDEX llm_budget_reservations_id_operation_id_key ON public.llm_budget_reservations USING btree (id, operation_id)`
+- `llm_budget_reservations_operation_id_key`: `CREATE UNIQUE INDEX llm_budget_reservations_operation_id_key ON public.llm_budget_reservations USING btree (operation_id)`
+- `llm_budget_reservations_period_state_idx`: `CREATE INDEX llm_budget_reservations_period_state_idx ON public.llm_budget_reservations USING btree (period_id, state)`
+- `llm_budget_reservations_pkey`: `CREATE UNIQUE INDEX llm_budget_reservations_pkey ON public.llm_budget_reservations USING btree (id)`
+
+#### llm_context_caches
+
+Owner: Services/Llm/Cache; retention: financial.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| provider_id | bigint / int8 | NO | bigint NOT NULL |
+| account_id | text / text | NO | text NOT NULL |
+| api_surface | text / text | NO | text NOT NULL |
+| model | text / text | NO | text NOT NULL |
+| system_hash | bytea / bytea | NO | bytea NOT NULL |
+| schema_tool_policy_hash | bytea / bytea | NO | bytea NOT NULL |
+| representation_hash | bytea / bytea | NO | bytea NOT NULL |
+| content_ordering_hash | bytea / bytea | NO | bytea NOT NULL |
+| provider_name | text / text | YES | text |
+| expires_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| creation_state | text / text | NO | text NOT NULL |
+| creation_token | uuid / uuid | YES | uuid |
+| creation_lease_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| cost | numeric / numeric | NO | numeric(24,8) NOT NULL |
+
+Constraints:
+- `llm_context_caches_check`: `CHECK (((creation_token IS NULL) = (creation_lease_until IS NULL)))`
+- `llm_context_caches_check1`: `CHECK (((creation_state <> 'active'::text) OR ((provider_name IS NOT NULL) AND (expires_at IS NOT NULL))))`
+- `llm_context_caches_content_ordering_hash_check`: `CHECK ((octet_length(content_ordering_hash) = 32))`
+- `llm_context_caches_cost_check`: `CHECK ((cost >= (0)::numeric))`
+- `llm_context_caches_creation_state_check`: `CHECK ((creation_state = ANY (ARRAY['creating'::text, 'active'::text, 'expired'::text])))`
+- `llm_context_caches_creation_token_fkey`: `FOREIGN KEY (creation_token) REFERENCES llm_provider_calls(physical_call_id)`
+- `llm_context_caches_pkey`: `PRIMARY KEY (id)`
+- `llm_context_caches_provider_id_account_id_api_surface_model_key`: `UNIQUE (provider_id, account_id, api_surface, model, system_hash, schema_tool_policy_hash, representation_hash, content_ordering_hash)`
+- `llm_context_caches_provider_id_fkey`: `FOREIGN KEY (provider_id) REFERENCES llm_providers(id)`
+- `llm_context_caches_representation_hash_check`: `CHECK ((octet_length(representation_hash) = 32))`
+- `llm_context_caches_schema_tool_policy_hash_check`: `CHECK ((octet_length(schema_tool_policy_hash) = 32))`
+- `llm_context_caches_system_hash_check`: `CHECK ((octet_length(system_hash) = 32))`
+
+Indexes:
+- `llm_context_caches_pkey`: `CREATE UNIQUE INDEX llm_context_caches_pkey ON public.llm_context_caches USING btree (id)`
+- `llm_context_caches_provider_id_account_id_api_surface_model_key`: `CREATE UNIQUE INDEX llm_context_caches_provider_id_account_id_api_surface_model_key ON public.llm_context_caches USING btree (provider_id, account_id, api_surface, model, system_hash, schema_tool_policy_hash, representation_hash, content_ordering_hash)`
+
+#### llm_file_assets
+
+Owner: Services/Llm/Cache; retention: financial.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| provider_id | bigint / int8 | NO | bigint NOT NULL |
+| account_id | text / text | NO | text NOT NULL |
+| api_surface | text / text | NO | text NOT NULL |
+| content_hash | bytea / bytea | NO | bytea NOT NULL |
+| mime | text / text | NO | text NOT NULL |
+| provider_uri | text / text | YES | text |
+| state | text / text | NO | text NOT NULL |
+| expires_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| creation_token | uuid / uuid | YES | uuid |
+| creation_lease_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+
+Constraints:
+- `llm_file_assets_check`: `CHECK (((creation_token IS NULL) = (creation_lease_until IS NULL)))`
+- `llm_file_assets_check1`: `CHECK (((state <> ALL (ARRAY['PROCESSING'::text, 'ACTIVE'::text])) OR ((provider_uri IS NOT NULL) AND (expires_at IS NOT NULL))))`
+- `llm_file_assets_content_hash_check`: `CHECK ((octet_length(content_hash) = 32))`
+- `llm_file_assets_creation_token_fkey`: `FOREIGN KEY (creation_token) REFERENCES llm_provider_calls(physical_call_id)`
+- `llm_file_assets_pkey`: `PRIMARY KEY (id)`
+- `llm_file_assets_provider_id_account_id_api_surface_content__key`: `UNIQUE (provider_id, account_id, api_surface, content_hash, mime)`
+- `llm_file_assets_provider_id_fkey`: `FOREIGN KEY (provider_id) REFERENCES llm_providers(id)`
+- `llm_file_assets_state_check`: `CHECK ((state = ANY (ARRAY['creating'::text, 'PROCESSING'::text, 'ACTIVE'::text, 'FAILED'::text, 'expired'::text])))`
+
+Indexes:
+- `llm_file_assets_pkey`: `CREATE UNIQUE INDEX llm_file_assets_pkey ON public.llm_file_assets USING btree (id)`
+- `llm_file_assets_provider_id_account_id_api_surface_content__key`: `CREATE UNIQUE INDEX llm_file_assets_provider_id_account_id_api_surface_content__key ON public.llm_file_assets USING btree (provider_id, account_id, api_surface, content_hash, mime)`
+
+#### llm_financial_actions
+
+Owner: P3.9; retention: financial.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| account_id | text / text | NO | text NOT NULL |
+| currency | text / text | NO | text NOT NULL |
+| physical_call_id | uuid / uuid | YES | uuid |
+| action | text / text | NO | text NOT NULL |
+| actor | text / text | NO | text NOT NULL |
+| reason | text / text | NO | text NOT NULL |
+| details | jsonb / jsonb | NO | jsonb NOT NULL |
+| details_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| occurred_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+
+Constraints:
+- `llm_financial_actions_account_id_currency_fkey`: `FOREIGN KEY (account_id, currency) REFERENCES llm_budget_accounts(account_id, currency)`
+- `llm_financial_actions_action_check`: `CHECK ((action = ANY (ARRAY['policy_change'::text, 'conservative_settlement'::text, 'abandon_unknown'::text, 'receipt_reconciliation'::text])))`
+- `llm_financial_actions_actor_check`: `CHECK ((length(actor) > 0))`
+- `llm_financial_actions_details_schema_version_check`: `CHECK ((details_schema_version = 1))`
+- `llm_financial_actions_physical_call_id_fkey`: `FOREIGN KEY (physical_call_id) REFERENCES llm_provider_calls(physical_call_id)`
+- `llm_financial_actions_pkey`: `PRIMARY KEY (id)`
+- `llm_financial_actions_reason_check`: `CHECK ((length(reason) > 0))`
+
+Indexes:
+- `llm_financial_actions_pkey`: `CREATE UNIQUE INDEX llm_financial_actions_pkey ON public.llm_financial_actions USING btree (id)`
+
 #### llm_prompts
 
 Owner: Llm; retention: business.
@@ -2295,6 +2485,138 @@ Constraints:
 Indexes:
 - `llm_prompts_document_type_key_version_unique`: `CREATE UNIQUE INDEX llm_prompts_document_type_key_version_unique ON public.llm_prompts USING btree (document_type, key, version)`
 - `llm_prompts_pkey`: `CREATE UNIQUE INDEX llm_prompts_pkey ON public.llm_prompts USING btree (id)`
+
+#### llm_provider_calls
+
+Owner: P3.9; retention: financial.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| physical_call_id | uuid / uuid | NO | uuid NOT NULL |
+| logical_request_id | uuid / uuid | NO | uuid NOT NULL |
+| ordinal | bigint / int8 | NO | bigint NOT NULL |
+| provider_id | bigint / int8 | NO | bigint NOT NULL |
+| account_id | text / text | NO | text NOT NULL |
+| api_surface | text / text | NO | text NOT NULL |
+| model | text / text | NO | text NOT NULL |
+| resolved_model_version | text / text | YES | text |
+| request_epoch | bigint / int8 | NO | bigint NOT NULL |
+| owner_attempt_id | uuid / uuid | NO | uuid NOT NULL |
+| owner_work_generation | bigint / int8 | NO | bigint NOT NULL |
+| send_authorization_token | uuid / uuid | NO | uuid NOT NULL |
+| send_claimed_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| sent_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| response_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| wire_fingerprint | bytea / bytea | YES | bytea |
+| http_status | smallint / int2 | YES | smallint |
+| finish_reason | text / text | YES | text |
+| usage_status | text / text | NO | text NOT NULL |
+| usage | jsonb / jsonb | YES | jsonb |
+| usage_schema_version | smallint / int2 | YES | smallint |
+| cost_estimate | numeric / numeric | NO | numeric(24,8) NOT NULL |
+| cost_actual | numeric / numeric | YES | numeric(24,8) |
+| receipt_id | uuid / uuid | YES | uuid |
+| receipt_state | text / text | NO | text NOT NULL |
+| receipt_upload_key | text / text | NO | text NOT NULL |
+| receipt_disk | text / text | YES | text |
+| receipt_key | text / text | YES | text |
+| receipt_hash | bytea / bytea | YES | bytea |
+| receipt_schema_version | smallint / int2 | YES | smallint |
+| reservation_id | uuid / uuid | NO | uuid NOT NULL |
+| outcome | text / text | YES | text |
+| charge_evidence | text / text | YES | text |
+
+Constraints:
+- `llm_provider_calls_check`: `CHECK (((usage IS NULL) = (usage_schema_version IS NULL)))`
+- `llm_provider_calls_check1`: `CHECK (((receipt_key IS NULL) = (receipt_hash IS NULL)))`
+- `llm_provider_calls_check2`: `CHECK (((receipt_key IS NULL) = (receipt_schema_version IS NULL)))`
+- `llm_provider_calls_check3`: `CHECK (((receipt_state = 'verified'::text) = (receipt_key IS NOT NULL)))`
+- `llm_provider_calls_check4`: `CHECK (((receipt_state <> ALL (ARRAY['verified'::text, 'unknown'::text])) OR (send_claimed_at IS NOT NULL)))`
+- `llm_provider_calls_check5`: `CHECK (((receipt_state <> 'not_sent'::text) OR ((send_claimed_at IS NULL) AND (cost_actual = (0)::numeric))))`
+- `llm_provider_calls_check6`: `CHECK (((receipt_key IS NULL) OR (receipt_key = receipt_upload_key)))`
+- `llm_provider_calls_cost_actual_check`: `CHECK ((cost_actual >= (0)::numeric))`
+- `llm_provider_calls_cost_estimate_check`: `CHECK ((cost_estimate >= (0)::numeric))`
+- `llm_provider_calls_http_status_check`: `CHECK (((http_status >= 100) AND (http_status <= 599)))`
+- `llm_provider_calls_logical_request_id_fkey`: `FOREIGN KEY (logical_request_id) REFERENCES llm_provider_requests(logical_request_id)`
+- `llm_provider_calls_logical_request_id_ordinal_key`: `UNIQUE (logical_request_id, ordinal)`
+- `llm_provider_calls_ordinal_check`: `CHECK ((ordinal >= 1))`
+- `llm_provider_calls_outcome_check`: `CHECK ((outcome = ANY (ARRAY['not_sent'::text, 'success'::text, 'known_nonbillable_cache_miss'::text, 'known_retryable_nonbillable'::text, 'billed_error'::text, 'unknown'::text])))`
+- `llm_provider_calls_owner_work_generation_check`: `CHECK ((owner_work_generation >= 1))`
+- `llm_provider_calls_physical_call_id_logical_request_id_key`: `UNIQUE (physical_call_id, logical_request_id)`
+- `llm_provider_calls_pkey`: `PRIMARY KEY (physical_call_id)`
+- `llm_provider_calls_provider_id_fkey`: `FOREIGN KEY (provider_id) REFERENCES llm_providers(id)`
+- `llm_provider_calls_receipt_hash_check`: `CHECK ((octet_length(receipt_hash) = 32))`
+- `llm_provider_calls_receipt_id_key`: `UNIQUE (receipt_id)`
+- `llm_provider_calls_receipt_schema_version_check`: `CHECK ((receipt_schema_version = 1))`
+- `llm_provider_calls_receipt_state_check`: `CHECK ((receipt_state = ANY (ARRAY['pending'::text, 'verified'::text, 'not_sent'::text, 'unknown'::text])))`
+- `llm_provider_calls_receipt_upload_key_key`: `UNIQUE (receipt_upload_key)`
+- `llm_provider_calls_request_epoch_check`: `CHECK ((request_epoch >= 1))`
+- `llm_provider_calls_reservation_fk`: `FOREIGN KEY (reservation_id, physical_call_id) REFERENCES llm_budget_reservations(id, operation_id) DEFERRABLE INITIALLY DEFERRED`
+- `llm_provider_calls_reservation_id_key`: `UNIQUE (reservation_id)`
+- `llm_provider_calls_usage_schema_version_check`: `CHECK ((usage_schema_version > 0))`
+- `llm_provider_calls_usage_status_check`: `CHECK ((usage_status = ANY (ARRAY['known'::text, 'unknown'::text])))`
+- `llm_provider_calls_wire_fingerprint_check`: `CHECK ((octet_length(wire_fingerprint) = 32))`
+
+Indexes:
+- `llm_provider_calls_account_idx`: `CREATE INDEX llm_provider_calls_account_idx ON public.llm_provider_calls USING btree (account_id, logical_request_id)`
+- `llm_provider_calls_logical_request_id_ordinal_key`: `CREATE UNIQUE INDEX llm_provider_calls_logical_request_id_ordinal_key ON public.llm_provider_calls USING btree (logical_request_id, ordinal)`
+- `llm_provider_calls_physical_call_id_logical_request_id_key`: `CREATE UNIQUE INDEX llm_provider_calls_physical_call_id_logical_request_id_key ON public.llm_provider_calls USING btree (physical_call_id, logical_request_id)`
+- `llm_provider_calls_pkey`: `CREATE UNIQUE INDEX llm_provider_calls_pkey ON public.llm_provider_calls USING btree (physical_call_id)`
+- `llm_provider_calls_receipt_id_key`: `CREATE UNIQUE INDEX llm_provider_calls_receipt_id_key ON public.llm_provider_calls USING btree (receipt_id)`
+- `llm_provider_calls_receipt_upload_key_key`: `CREATE UNIQUE INDEX llm_provider_calls_receipt_upload_key_key ON public.llm_provider_calls USING btree (receipt_upload_key)`
+- `llm_provider_calls_reservation_id_key`: `CREATE UNIQUE INDEX llm_provider_calls_reservation_id_key ON public.llm_provider_calls USING btree (reservation_id)`
+- `llm_provider_calls_send_time_idx`: `CREATE INDEX llm_provider_calls_send_time_idx ON public.llm_provider_calls USING btree (COALESCE(sent_at, send_claimed_at))`
+
+#### llm_provider_requests
+
+Owner: P3.9; retention: financial.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| logical_request_id | uuid / uuid | NO | uuid NOT NULL |
+| logical_key | bytea / bytea | NO | bytea NOT NULL |
+| recipe_hash | bytea / bytea | NO | bytea NOT NULL |
+| input_hash | bytea / bytea | NO | bytea NOT NULL |
+| purpose | text / text | NO | text NOT NULL |
+| semantic_reask_ordinal | bigint / int8 | NO | bigint NOT NULL |
+| replay_intent_id | uuid / uuid | NO | uuid NOT NULL |
+| replay_of | uuid / uuid | YES | uuid |
+| command_id | uuid / uuid | YES | uuid |
+| replay_actor | text / text | YES | text |
+| replay_reason | text / text | YES | text |
+| state | text / text | NO | text NOT NULL |
+| request_epoch | bigint / int8 | NO | bigint NOT NULL |
+| idempotency_key | text / text | YES | text |
+| consumer_correlation_id | text / text | NO | text NOT NULL |
+| reservation_amount | numeric / numeric | NO | numeric(24,8) DEFAULT 0 NOT NULL |
+| context_json | jsonb / jsonb | NO | jsonb NOT NULL |
+| context_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| max_physical_attempts | bigint / int8 | NO | bigint NOT NULL |
+
+Constraints:
+- `llm_provider_requests_check`: `CHECK (((replay_of IS NULL) = (command_id IS NULL)))`
+- `llm_provider_requests_check1`: `CHECK (((command_id IS NULL) = (replay_actor IS NULL)))`
+- `llm_provider_requests_check2`: `CHECK (((command_id IS NULL) = (replay_reason IS NULL)))`
+- `llm_provider_requests_command_id_key`: `UNIQUE (command_id)`
+- `llm_provider_requests_context_schema_version_check`: `CHECK ((context_schema_version = 1))`
+- `llm_provider_requests_input_hash_check`: `CHECK ((octet_length(input_hash) = 32))`
+- `llm_provider_requests_logical_key_check`: `CHECK ((octet_length(logical_key) = 32))`
+- `llm_provider_requests_logical_key_key`: `UNIQUE (logical_key)`
+- `llm_provider_requests_max_physical_attempts_check`: `CHECK (((max_physical_attempts >= 1) AND (max_physical_attempts <= 10)))`
+- `llm_provider_requests_pkey`: `PRIMARY KEY (logical_request_id)`
+- `llm_provider_requests_purpose_check`: `CHECK ((purpose = ANY (ARRAY['generate'::text, 'cache_create'::text, 'cache_refresh'::text, 'cache_storage'::text, 'file_upload'::text, 'lookup'::text])))`
+- `llm_provider_requests_recipe_hash_check`: `CHECK ((octet_length(recipe_hash) = 32))`
+- `llm_provider_requests_replay_of_fkey`: `FOREIGN KEY (replay_of) REFERENCES llm_provider_requests(logical_request_id)`
+- `llm_provider_requests_request_epoch_check`: `CHECK ((request_epoch >= 1))`
+- `llm_provider_requests_reservation_amount_check`: `CHECK ((reservation_amount >= (0)::numeric))`
+- `llm_provider_requests_semantic_reask_ordinal_check`: `CHECK (((semantic_reask_ordinal >= 0) AND (semantic_reask_ordinal <= 1)))`
+- `llm_provider_requests_state_check`: `CHECK ((state = ANY (ARRAY['prepared'::text, 'sending'::text, 'completed'::text, 'failed_known'::text, 'unknown'::text, 'abandoned_unknown'::text])))`
+
+Indexes:
+- `llm_provider_requests_command_id_key`: `CREATE UNIQUE INDEX llm_provider_requests_command_id_key ON public.llm_provider_requests USING btree (command_id)`
+- `llm_provider_requests_logical_key_key`: `CREATE UNIQUE INDEX llm_provider_requests_logical_key_key ON public.llm_provider_requests USING btree (logical_key)`
+- `llm_provider_requests_pkey`: `CREATE UNIQUE INDEX llm_provider_requests_pkey ON public.llm_provider_requests USING btree (logical_request_id)`
+- `llm_provider_requests_unknown_state_idx`: `CREATE INDEX llm_provider_requests_unknown_state_idx ON public.llm_provider_requests USING btree (logical_request_id) WHERE (state = ANY (ARRAY['unknown'::text, 'abandoned_unknown'::text]))`
 
 #### llm_providers
 
@@ -2816,6 +3138,172 @@ Indexes:
 - `prc_ai_prompt_suggestions_prompt_key_index`: `CREATE INDEX prc_ai_prompt_suggestions_prompt_key_index ON public.prc_ai_prompt_suggestions USING btree (prompt_key)`
 - `prc_ai_prompt_suggestions_status_index`: `CREATE INDEX prc_ai_prompt_suggestions_status_index ON public.prc_ai_prompt_suggestions USING btree (status)`
 - `prc_ai_prompt_suggestions_uuid_unique`: `CREATE UNIQUE INDEX prc_ai_prompt_suggestions_uuid_unique ON public.prc_ai_prompt_suggestions USING btree (uuid)`
+
+#### prc_analysis_chunks
+
+Owner: P3.8 canonical analysis / Repositories/Procurement/Ai; retention: business.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| run_id | uuid / uuid | NO | uuid NOT NULL |
+| window_id | uuid / uuid | NO | uuid NOT NULL |
+| window_key | text / text | NO | text NOT NULL |
+| recipe_hash | bytea / bytea | NO | bytea NOT NULL |
+| subrange_key | bytea / bytea | NO | bytea NOT NULL |
+| output_ordinal | bigint / int8 | NO | bigint NOT NULL |
+| output_ref | jsonb / jsonb | NO | jsonb NOT NULL |
+| output_ref_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| output_hash | bytea / bytea | NO | bytea NOT NULL |
+| canonical_rows | jsonb / jsonb | NO | jsonb NOT NULL |
+| canonical_rows_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| provenance | jsonb / jsonb | NO | jsonb NOT NULL |
+| provenance_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| completed_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+
+Constraints:
+- `prc_analysis_chunks_canonical_rows_schema_version_check`: `CHECK ((canonical_rows_schema_version > 0))`
+- `prc_analysis_chunks_output_hash_check`: `CHECK ((octet_length(output_hash) = 32))`
+- `prc_analysis_chunks_output_ordinal_check`: `CHECK ((output_ordinal >= 0))`
+- `prc_analysis_chunks_output_ref_schema_version_check`: `CHECK ((output_ref_schema_version > 0))`
+- `prc_analysis_chunks_pkey`: `PRIMARY KEY (id)`
+- `prc_analysis_chunks_provenance_schema_version_check`: `CHECK ((provenance_schema_version > 0))`
+- `prc_analysis_chunks_recipe_fk`: `FOREIGN KEY (run_id, recipe_hash) REFERENCES prc_analysis_runs(id, recipe_hash)`
+- `prc_analysis_chunks_recipe_hash_check`: `CHECK ((octet_length(recipe_hash) = 32))`
+- `prc_analysis_chunks_run_id_fkey`: `FOREIGN KEY (run_id) REFERENCES prc_analysis_runs(id)`
+- `prc_analysis_chunks_run_id_window_key_recipe_hash_subrange__key`: `UNIQUE (run_id, window_key, recipe_hash, subrange_key, output_ordinal)`
+- `prc_analysis_chunks_subrange_key_check`: `CHECK ((octet_length(subrange_key) = 32))`
+- `prc_analysis_chunks_window_id_fkey`: `FOREIGN KEY (window_id) REFERENCES prc_analysis_windows(id)`
+- `prc_analysis_chunks_window_identity_fk`: `FOREIGN KEY (window_id, run_id, window_key) REFERENCES prc_analysis_windows(id, run_id, window_key)`
+
+Indexes:
+- `prc_analysis_chunks_pkey`: `CREATE UNIQUE INDEX prc_analysis_chunks_pkey ON public.prc_analysis_chunks USING btree (id)`
+- `prc_analysis_chunks_run_id_window_key_recipe_hash_subrange__key`: `CREATE UNIQUE INDEX prc_analysis_chunks_run_id_window_key_recipe_hash_subrange__key ON public.prc_analysis_chunks USING btree (run_id, window_key, recipe_hash, subrange_key, output_ordinal)`
+
+#### prc_analysis_llm_requests
+
+Owner: P3.9; retention: financial.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| analysis_run_id | uuid / uuid | NO | uuid NOT NULL |
+| work_id | uuid / uuid | NO | uuid NOT NULL |
+| attempt_id | uuid / uuid | NO | uuid NOT NULL |
+| logical_request_id | uuid / uuid | NO | uuid NOT NULL |
+| physical_call_id | uuid / uuid | NO | uuid NOT NULL |
+| expected_input_hash | bytea / bytea | NO | bytea NOT NULL |
+| recipe_hash | bytea / bytea | NO | bytea NOT NULL |
+| recovery_active | boolean / bool | NO | boolean DEFAULT true NOT NULL |
+
+Constraints:
+- `prc_analysis_llm_requests_analysis_run_id_fkey`: `FOREIGN KEY (analysis_run_id) REFERENCES prc_analysis_runs(id)`
+- `prc_analysis_llm_requests_analysis_run_id_recipe_hash_fkey`: `FOREIGN KEY (analysis_run_id, recipe_hash) REFERENCES prc_analysis_runs(id, recipe_hash)`
+- `prc_analysis_llm_requests_attempt_id_fkey`: `FOREIGN KEY (attempt_id) REFERENCES prc_process_attempts(id)`
+- `prc_analysis_llm_requests_expected_input_hash_check`: `CHECK ((octet_length(expected_input_hash) = 32))`
+- `prc_analysis_llm_requests_logical_request_id_fkey`: `FOREIGN KEY (logical_request_id) REFERENCES llm_provider_requests(logical_request_id)`
+- `prc_analysis_llm_requests_physical_call_id_fkey`: `FOREIGN KEY (physical_call_id) REFERENCES llm_provider_calls(physical_call_id)`
+- `prc_analysis_llm_requests_physical_call_id_key`: `UNIQUE (physical_call_id)`
+- `prc_analysis_llm_requests_physical_call_id_logical_request_fkey`: `FOREIGN KEY (physical_call_id, logical_request_id) REFERENCES llm_provider_calls(physical_call_id, logical_request_id)`
+- `prc_analysis_llm_requests_pkey`: `PRIMARY KEY (id)`
+- `prc_analysis_llm_requests_recipe_hash_check`: `CHECK ((octet_length(recipe_hash) = 32))`
+- `prc_analysis_llm_requests_work_id_fkey`: `FOREIGN KEY (work_id) REFERENCES prc_process_work(id)`
+
+Indexes:
+- `prc_analysis_llm_active_work`: `CREATE UNIQUE INDEX prc_analysis_llm_active_work ON public.prc_analysis_llm_requests USING btree (work_id) WHERE recovery_active`
+- `prc_analysis_llm_requests_physical_call_id_key`: `CREATE UNIQUE INDEX prc_analysis_llm_requests_physical_call_id_key ON public.prc_analysis_llm_requests USING btree (physical_call_id)`
+- `prc_analysis_llm_requests_pkey`: `CREATE UNIQUE INDEX prc_analysis_llm_requests_pkey ON public.prc_analysis_llm_requests USING btree (id)`
+- `prc_analysis_llm_requests_run_call_idx`: `CREATE INDEX prc_analysis_llm_requests_run_call_idx ON public.prc_analysis_llm_requests USING btree (analysis_run_id, physical_call_id)`
+- `prc_analysis_llm_work_idx`: `CREATE INDEX prc_analysis_llm_work_idx ON public.prc_analysis_llm_requests USING btree (work_id, attempt_id)`
+
+#### prc_analysis_runs
+
+Owner: P3.8 canonical analysis / Repositories/Procurement/Ai; retention: business.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| document_version_id | bigint / int8 | NO | bigint NOT NULL |
+| representation_id | bigint / int8 | NO | bigint NOT NULL |
+| representation_hash | bytea / bytea | NO | bytea NOT NULL |
+| recipe_json | jsonb / jsonb | NO | jsonb NOT NULL |
+| recipe_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| recipe_hash | bytea / bytea | NO | bytea NOT NULL |
+| generation | bigint / int8 | NO | bigint NOT NULL |
+| expected_document_head_generation | bigint / int8 | NO | bigint NOT NULL |
+| expected_analysis_generation | bigint / int8 | NO | bigint NOT NULL |
+| requested_reason | text / text | NO | text NOT NULL |
+| supersedes_run_id | uuid / uuid | YES | uuid |
+| publication_status | text / text | NO | text NOT NULL |
+| screening_result | jsonb / jsonb | YES | jsonb |
+| screening_result_schema_version | smallint / int2 | YES | smallint |
+| screening_disposition | text / text | YES | text |
+| declared_coverage | jsonb / jsonb | YES | jsonb |
+| declared_coverage_schema_version | smallint / int2 | YES | smallint |
+| publication_digest | bytea / bytea | YES | bytea |
+
+Constraints:
+- `prc_analysis_runs_coverage_pair`: `CHECK (((declared_coverage IS NULL) = (declared_coverage_schema_version IS NULL)))`
+- `prc_analysis_runs_coverage_schema`: `CHECK (((declared_coverage_schema_version IS NULL) OR (declared_coverage_schema_version = ANY (ARRAY[1, 2]))))`
+- `prc_analysis_runs_coverage_source`: `CHECK (((declared_coverage_schema_version IS DISTINCT FROM 2) OR ((NOT (jsonb_typeof((declared_coverage -> 'source'::text)) IS DISTINCT FROM 'object'::text)) AND ((NOT (jsonb_typeof((declared_coverage -> 'estimates'::text)) IS DISTINCT FROM 'null'::text)) OR (NOT (jsonb_typeof((declared_coverage -> 'estimates'::text)) IS DISTINCT FROM 'array'::text))))))`
+- `prc_analysis_runs_document_version_id_fkey`: `FOREIGN KEY (document_version_id) REFERENCES prc_document_versions(id)`
+- `prc_analysis_runs_expected_analysis_generation_check`: `CHECK ((expected_analysis_generation >= 1))`
+- `prc_analysis_runs_expected_document_head_generation_check`: `CHECK ((expected_document_head_generation >= 1))`
+- `prc_analysis_runs_generation_check`: `CHECK ((generation >= 1))`
+- `prc_analysis_runs_id_recipe_unique`: `UNIQUE (id, recipe_hash)`
+- `prc_analysis_runs_pkey`: `PRIMARY KEY (id)`
+- `prc_analysis_runs_publication_check`: `CHECK ((publication_status = ANY (ARRAY['unpublished'::text, 'published'::text])))`
+- `prc_analysis_runs_publication_digest_check`: `CHECK (((publication_digest IS NULL) OR (octet_length(publication_digest) = 32)))`
+- `prc_analysis_runs_publication_pair`: `CHECK (((publication_status = 'published'::text) = (publication_digest IS NOT NULL)))`
+- `prc_analysis_runs_recipe_hash_check`: `CHECK ((octet_length(recipe_hash) = 32))`
+- `prc_analysis_runs_recipe_schema_version_check`: `CHECK ((recipe_schema_version > 0))`
+- `prc_analysis_runs_representation_hash_check`: `CHECK ((octet_length(representation_hash) = 32))`
+- `prc_analysis_runs_representation_id_fkey`: `FOREIGN KEY (representation_id) REFERENCES prc_document_representations(id)`
+- `prc_analysis_runs_representation_identity_fk`: `FOREIGN KEY (representation_id, document_version_id, representation_hash) REFERENCES prc_document_representations(id, document_version_id, content_hash)`
+- `prc_analysis_runs_screening_disposition_check`: `CHECK ((screening_disposition = ANY (ARRAY['extract'::text, 'retain'::text, 'review'::text, 'ignore'::text])))`
+- `prc_analysis_runs_screening_disposition_pair`: `CHECK (((screening_result IS NULL) = (screening_disposition IS NULL)))`
+- `prc_analysis_runs_screening_schema_check`: `CHECK (((screening_result_schema_version IS NULL) OR (screening_result_schema_version = 1)))`
+- `prc_analysis_runs_screening_schema_pair`: `CHECK (((screening_result IS NULL) = (screening_result_schema_version IS NULL)))`
+- `prc_analysis_runs_supersedes_run_id_fkey`: `FOREIGN KEY (supersedes_run_id) REFERENCES prc_analysis_runs(id)`
+- `prc_analysis_runs_version_identity_unique`: `UNIQUE (id, document_version_id)`
+
+Indexes:
+- `prc_analysis_runs_document_version_idx`: `CREATE INDEX prc_analysis_runs_document_version_idx ON public.prc_analysis_runs USING btree (document_version_id)`
+- `prc_analysis_runs_id_recipe_unique`: `CREATE UNIQUE INDEX prc_analysis_runs_id_recipe_unique ON public.prc_analysis_runs USING btree (id, recipe_hash)`
+- `prc_analysis_runs_pkey`: `CREATE UNIQUE INDEX prc_analysis_runs_pkey ON public.prc_analysis_runs USING btree (id)`
+- `prc_analysis_runs_version_identity_unique`: `CREATE UNIQUE INDEX prc_analysis_runs_version_identity_unique ON public.prc_analysis_runs USING btree (id, document_version_id)`
+
+#### prc_analysis_windows
+
+Owner: P3.8 canonical analysis / Repositories/Procurement/Ai; retention: business.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| run_id | uuid / uuid | NO | uuid NOT NULL |
+| window_key | text / text | NO | text NOT NULL |
+| input_hash | bytea / bytea | NO | bytea NOT NULL |
+| input_range | jsonb / jsonb | NO | jsonb NOT NULL |
+| input_range_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| expected_coverage | jsonb / jsonb | NO | jsonb NOT NULL |
+| expected_coverage_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| state | text / text | NO | text NOT NULL |
+| checkpoint_version | bigint / int8 | NO | bigint NOT NULL |
+
+Constraints:
+- `prc_analysis_windows_checkpoint_version_check`: `CHECK ((checkpoint_version >= 0))`
+- `prc_analysis_windows_expected_coverage_schema_version_check`: `CHECK ((expected_coverage_schema_version > 0))`
+- `prc_analysis_windows_identity_unique`: `UNIQUE (id, run_id, window_key)`
+- `prc_analysis_windows_input_hash_check`: `CHECK ((octet_length(input_hash) = 32))`
+- `prc_analysis_windows_input_range_schema_version_check`: `CHECK ((input_range_schema_version > 0))`
+- `prc_analysis_windows_pkey`: `PRIMARY KEY (id)`
+- `prc_analysis_windows_run_id_fkey`: `FOREIGN KEY (run_id) REFERENCES prc_analysis_runs(id)`
+- `prc_analysis_windows_run_id_window_key_key`: `UNIQUE (run_id, window_key)`
+
+Indexes:
+- `prc_analysis_windows_identity_unique`: `CREATE UNIQUE INDEX prc_analysis_windows_identity_unique ON public.prc_analysis_windows USING btree (id, run_id, window_key)`
+- `prc_analysis_windows_pkey`: `CREATE UNIQUE INDEX prc_analysis_windows_pkey ON public.prc_analysis_windows USING btree (id)`
+- `prc_analysis_windows_run_id_window_key_key`: `CREATE UNIQUE INDEX prc_analysis_windows_run_id_window_key_key ON public.prc_analysis_windows USING btree (run_id, window_key)`
 
 #### prc_awards
 
@@ -3731,6 +4219,27 @@ Indexes:
 - `prc_lots_procurement_id_lot_number_unique`: `CREATE UNIQUE INDEX prc_lots_procurement_id_lot_number_unique ON public.prc_lots USING btree (procurement_id, lot_number)`
 - `prc_lots_procurement_lot_guid_unique`: `CREATE UNIQUE INDEX prc_lots_procurement_lot_guid_unique ON public.prc_lots USING btree (procurement_id, lot_guid) WHERE (lot_guid IS NOT NULL)`
 
+#### prc_network_authorities
+
+Owner: Services/Procurement/Proxyma; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | text / text | NO | text NOT NULL |
+| authority | text / text | NO | text DEFAULT 'legacy'::text NOT NULL |
+| generation | bigint / int8 | NO | bigint NOT NULL |
+| cutover_id | uuid / uuid | YES | uuid |
+| paused | boolean / bool | NO | boolean DEFAULT false NOT NULL |
+| legacy_frozen | boolean / bool | NO | boolean DEFAULT false NOT NULL |
+
+Constraints:
+- `prc_network_authorities_cutover_id_foreign`: `FOREIGN KEY (cutover_id) REFERENCES prc_network_cutover_journals(id)`
+- `prc_network_authorities_pkey`: `PRIMARY KEY (id)`
+- `prc_network_authorities_valid`: `CHECK (((id = 'network'::text) AND (generation > 0) AND (authority = ANY (ARRAY['legacy'::text, 'proxyma'::text])) AND ((authority = 'legacy'::text) OR (cutover_id IS NOT NULL))))`
+
+Indexes:
+- `prc_network_authorities_pkey`: `CREATE UNIQUE INDEX prc_network_authorities_pkey ON public.prc_network_authorities USING btree (id)`
+
 #### prc_network_budgets
 
 Owner: Repositories/Procurement/Network; retention: requests.
@@ -3758,6 +4267,29 @@ Constraints:
 Indexes:
 - `prc_network_budgets_pkey`: `CREATE UNIQUE INDEX prc_network_budgets_pkey ON public.prc_network_budgets USING btree (id)`
 - `prc_network_budgets_scope_key_key`: `CREATE UNIQUE INDEX prc_network_budgets_scope_key_key ON public.prc_network_budgets USING btree (scope_key)`
+
+#### prc_network_cutover_journals
+
+Owner: Services/Procurement/Proxyma; retention: journal.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| source_revision | text / text | NO | text NOT NULL |
+| target_revision | text / text | NO | text NOT NULL |
+| phase | text / text | NO | text NOT NULL |
+| generation | bigint / int8 | NO | bigint NOT NULL |
+| first_authorized_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
+| checkpoint | jsonb / jsonb | NO | jsonb DEFAULT '{}'::jsonb NOT NULL |
+
+Constraints:
+- `prc_network_cutover_journals_pkey`: `PRIMARY KEY (id)`
+- `prc_network_cutover_journals_valid`: `CHECK (((generation > 0) AND (phase = ANY (ARRAY['prepared'::text, 'draining'::text, 'verified'::text, 'switched'::text, 'accepted'::text]))))`
+- `prc_pxm_journal_identity`: `UNIQUE (source_revision, target_revision, generation)`
+
+Indexes:
+- `prc_network_cutover_journals_pkey`: `CREATE UNIQUE INDEX prc_network_cutover_journals_pkey ON public.prc_network_cutover_journals USING btree (id)`
+- `prc_pxm_journal_identity`: `CREATE UNIQUE INDEX prc_pxm_journal_identity ON public.prc_network_cutover_journals USING btree (source_revision, target_revision, generation)`
 
 #### prc_network_demands
 
@@ -4112,6 +4644,121 @@ Indexes:
 - `prc_outbound_operations_operation_key_key`: `CREATE UNIQUE INDEX prc_outbound_operations_operation_key_key ON public.prc_outbound_operations USING btree (operation_key)`
 - `prc_outbound_operations_pkey`: `CREATE UNIQUE INDEX prc_outbound_operations_pkey ON public.prc_outbound_operations USING btree (id)`
 - `prc_outbound_operations_reap`: `CREATE INDEX prc_outbound_operations_reap ON public.prc_outbound_operations USING btree (lease_until) WHERE (state = 'open'::text)`
+
+#### prc_parsing_rule_events
+
+Owner: Procurement; retention: journal.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | bigint / int8 | NO | bigint NOT NULL |
+| rule_set_id | bigint / int8 | NO | bigint NOT NULL |
+| rule_version_id | bigint / int8 | YES | bigint |
+| event_type | character varying / varchar | NO | character varying(32) NOT NULL |
+| actor_type | character varying / varchar | NO | character varying(32) NOT NULL |
+| actor_id | bigint / int8 | YES | bigint |
+| reason | text / text | NO | text NOT NULL |
+| metadata | jsonb / jsonb | YES | jsonb |
+| occurred_at | timestamp with time zone / timestamptz | NO | timestamp(6) with time zone NOT NULL |
+
+Constraints:
+- `prc_parsing_rule_events_actor_id_fkey`: `FOREIGN KEY (actor_id) REFERENCES users(id)`
+- `prc_parsing_rule_events_actor_type_check`: `CHECK (((actor_type)::text = ANY ((ARRAY['user'::character varying, 'system'::character varying, 'cli'::character varying, 'seeder'::character varying, 'auto_heal'::character varying])::text[])))`
+- `prc_parsing_rule_events_event_type_check`: `CHECK (((event_type)::text = ANY ((ARRAY['created'::character varying, 'validated'::character varying, 'validation_failed'::character varying, 'activated'::character varying, 'rolled_back'::character varying, 'archived'::character varying, 'drift_detected'::character varying, 'candidate_proposed'::character varying, 'candidate_verified'::character varying])::text[])))`
+- `prc_parsing_rule_events_pkey`: `PRIMARY KEY (id)`
+- `prc_parsing_rule_events_rule_set_id_fkey`: `FOREIGN KEY (rule_set_id) REFERENCES prc_parsing_rule_sets(id)`
+- `prc_parsing_rule_events_rule_version_id_fkey`: `FOREIGN KEY (rule_version_id) REFERENCES prc_parsing_rule_versions(id)`
+
+Indexes:
+- `prc_parsing_rule_events_occurred_at_idx`: `CREATE INDEX prc_parsing_rule_events_occurred_at_idx ON public.prc_parsing_rule_events USING btree (rule_set_id, occurred_at DESC)`
+- `prc_parsing_rule_events_pkey`: `CREATE UNIQUE INDEX prc_parsing_rule_events_pkey ON public.prc_parsing_rule_events USING btree (id)`
+- `prc_parsing_rule_events_type_occurred_at_idx`: `CREATE INDEX prc_parsing_rule_events_type_occurred_at_idx ON public.prc_parsing_rule_events USING btree (rule_set_id, event_type, occurred_at DESC)`
+
+#### prc_parsing_rule_sets
+
+Owner: Procurement; retention: business.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | bigint / int8 | NO | bigint NOT NULL |
+| uuid | uuid / uuid | NO | uuid NOT NULL |
+| platform_id | bigint / int8 | NO | bigint NOT NULL |
+| stage | character varying / varchar | NO | character varying(32) NOT NULL |
+| registry_code | character varying / varchar | YES | character varying(64) |
+| scope_key | character varying / varchar | NO | character varying(64) DEFAULT 'default'::character varying NOT NULL |
+| active_version_id | bigint / int8 | YES | bigint |
+| current_version_number | integer / int4 | NO | integer DEFAULT 0 NOT NULL |
+| auto_heal_mode | character varying / varchar | NO | character varying(32) DEFAULT 'propose'::character varying NOT NULL |
+| description | text / text | YES | text |
+| is_enabled | boolean / bool | NO | boolean DEFAULT true NOT NULL |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp(6) with time zone NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp(6) with time zone NOT NULL |
+
+Constraints:
+- `prc_parsing_rule_sets_active_version_fk`: `FOREIGN KEY (id, active_version_id) REFERENCES prc_parsing_rule_versions(rule_set_id, id)`
+- `prc_parsing_rule_sets_auto_heal_mode_check`: `CHECK (((auto_heal_mode)::text = ANY ((ARRAY['disabled'::character varying, 'propose'::character varying, 'auto_promote_fallback'::character varying])::text[])))`
+- `prc_parsing_rule_sets_current_version_number_check`: `CHECK ((current_version_number >= 0))`
+- `prc_parsing_rule_sets_pkey`: `PRIMARY KEY (id)`
+- `prc_parsing_rule_sets_platform_id_fkey`: `FOREIGN KEY (platform_id) REFERENCES prc_platforms(id)`
+- `prc_parsing_rule_sets_stage_check`: `CHECK (((stage)::text = ANY ((ARRAY['listing'::character varying, 'detail'::character varying, 'status_refresh'::character varying])::text[])))`
+- `prc_parsing_rule_sets_uuid_key`: `UNIQUE (uuid)`
+
+Indexes:
+- `prc_parsing_rule_sets_active_lookup_idx`: `CREATE INDEX prc_parsing_rule_sets_active_lookup_idx ON public.prc_parsing_rule_sets USING btree (platform_id, stage, is_enabled)`
+- `prc_parsing_rule_sets_pkey`: `CREATE UNIQUE INDEX prc_parsing_rule_sets_pkey ON public.prc_parsing_rule_sets USING btree (id)`
+- `prc_parsing_rule_sets_scope_unique`: `CREATE UNIQUE INDEX prc_parsing_rule_sets_scope_unique ON public.prc_parsing_rule_sets USING btree (platform_id, stage, COALESCE(registry_code, ''::character varying), scope_key)`
+- `prc_parsing_rule_sets_uuid_key`: `CREATE UNIQUE INDEX prc_parsing_rule_sets_uuid_key ON public.prc_parsing_rule_sets USING btree (uuid)`
+
+#### prc_parsing_rule_versions
+
+Owner: Procurement; retention: business.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | bigint / int8 | NO | bigint NOT NULL |
+| uuid | uuid / uuid | NO | uuid NOT NULL |
+| rule_set_id | bigint / int8 | NO | bigint NOT NULL |
+| version | integer / int4 | NO | integer NOT NULL |
+| schema_id | character varying / varchar | NO | character varying(128) NOT NULL |
+| schema_version | smallint / int2 | NO | smallint DEFAULT 1 NOT NULL |
+| status | character varying / varchar | NO | character varying(32) NOT NULL |
+| rules_json | jsonb / jsonb | NO | jsonb NOT NULL |
+| rules_hash | bytea / bytea | NO | bytea NOT NULL |
+| source | character varying / varchar | NO | character varying(32) DEFAULT 'manual'::character varying NOT NULL |
+| change_summary | text / text | NO | text NOT NULL |
+| validation_report | jsonb / jsonb | YES | jsonb |
+| parent_version_id | bigint / int8 | YES | bigint |
+| created_by | bigint / int8 | YES | bigint |
+| activated_by | bigint / int8 | YES | bigint |
+| activated_at | timestamp with time zone / timestamptz | YES | timestamp(6) with time zone |
+| deactivated_at | timestamp with time zone / timestamptz | YES | timestamp(6) with time zone |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp(6) with time zone NOT NULL |
+
+Constraints:
+- `prc_parsing_rule_versions_activated_by_fkey`: `FOREIGN KEY (activated_by) REFERENCES users(id)`
+- `prc_parsing_rule_versions_created_by_fkey`: `FOREIGN KEY (created_by) REFERENCES users(id)`
+- `prc_parsing_rule_versions_lifecycle_check`: `CHECK (((((status)::text = 'active'::text) AND (activated_at IS NOT NULL) AND (deactivated_at IS NULL)) OR (((status)::text = 'superseded'::text) AND (activated_at IS NOT NULL) AND (deactivated_at IS NOT NULL) AND (deactivated_at >= activated_at)) OR (((status)::text = ANY ((ARRAY['draft'::character varying, 'validated'::character varying, 'rejected'::character varying])::text[])) AND (activated_at IS NULL) AND (deactivated_at IS NULL))))`
+- `prc_parsing_rule_versions_parent_version_id_fkey`: `FOREIGN KEY (parent_version_id) REFERENCES prc_parsing_rule_versions(id)`
+- `prc_parsing_rule_versions_pkey`: `PRIMARY KEY (id)`
+- `prc_parsing_rule_versions_rule_set_id_fkey`: `FOREIGN KEY (rule_set_id) REFERENCES prc_parsing_rule_sets(id)`
+- `prc_parsing_rule_versions_rule_set_id_id_key`: `UNIQUE (rule_set_id, id)`
+- `prc_parsing_rule_versions_rule_set_id_version_key`: `UNIQUE (rule_set_id, version)`
+- `prc_parsing_rule_versions_rules_hash_check`: `CHECK ((octet_length(rules_hash) = 32))`
+- `prc_parsing_rule_versions_rules_json_check`: `CHECK ((jsonb_typeof(rules_json) = 'object'::text))`
+- `prc_parsing_rule_versions_schema_version_check`: `CHECK ((schema_version >= 1))`
+- `prc_parsing_rule_versions_source_check`: `CHECK (((source)::text = ANY ((ARRAY['seed'::character varying, 'manual'::character varying, 'import'::character varying, 'auto_heal'::character varying, 'rollback'::character varying])::text[])))`
+- `prc_parsing_rule_versions_status_check`: `CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'validated'::character varying, 'active'::character varying, 'superseded'::character varying, 'rejected'::character varying])::text[])))`
+- `prc_parsing_rule_versions_uuid_key`: `UNIQUE (uuid)`
+- `prc_parsing_rule_versions_version_check`: `CHECK ((version >= 1))`
+
+Indexes:
+- `prc_parsing_rule_versions_created_at_idx`: `CREATE INDEX prc_parsing_rule_versions_created_at_idx ON public.prc_parsing_rule_versions USING btree (rule_set_id, created_at DESC)`
+- `prc_parsing_rule_versions_one_active_idx`: `CREATE UNIQUE INDEX prc_parsing_rule_versions_one_active_idx ON public.prc_parsing_rule_versions USING btree (rule_set_id) WHERE ((status)::text = 'active'::text)`
+- `prc_parsing_rule_versions_pkey`: `CREATE UNIQUE INDEX prc_parsing_rule_versions_pkey ON public.prc_parsing_rule_versions USING btree (id)`
+- `prc_parsing_rule_versions_rule_set_id_id_key`: `CREATE UNIQUE INDEX prc_parsing_rule_versions_rule_set_id_id_key ON public.prc_parsing_rule_versions USING btree (rule_set_id, id)`
+- `prc_parsing_rule_versions_rule_set_id_version_key`: `CREATE UNIQUE INDEX prc_parsing_rule_versions_rule_set_id_version_key ON public.prc_parsing_rule_versions USING btree (rule_set_id, version)`
+- `prc_parsing_rule_versions_status_idx`: `CREATE INDEX prc_parsing_rule_versions_status_idx ON public.prc_parsing_rule_versions USING btree (rule_set_id, status)`
+- `prc_parsing_rule_versions_uuid_key`: `CREATE UNIQUE INDEX prc_parsing_rule_versions_uuid_key ON public.prc_parsing_rule_versions USING btree (uuid)`
 
 #### prc_platform_checks
 
@@ -4854,6 +5501,152 @@ Indexes:
 - `prc_proxies_route_id_key`: `CREATE UNIQUE INDEX prc_proxies_route_id_key ON public.prc_proxies USING btree (route_id)`
 - `prc_proxies_scopes_gin`: `CREATE INDEX prc_proxies_scopes_gin ON public.prc_proxies USING gin (scopes)`
 
+#### prc_proxyma_binding_links
+
+Owner: Services/Procurement/Proxyma; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| crawler_id | bigint / int8 | NO | bigint NOT NULL |
+| slot | text / text | NO | text NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL |
+| binding_id | uuid / uuid | NO | uuid NOT NULL |
+
+Constraints:
+- `prc_proxyma_binding_links_crawler_id_foreign`: `FOREIGN KEY (crawler_id) REFERENCES prc_crawlers(id)`
+- `prc_proxyma_binding_links_pkey`: `PRIMARY KEY (crawler_id, slot)`
+- `prc_proxyma_binding_links_valid`: `CHECK ((slot = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'reference'::text, 'llm'::text])))`
+- `prc_pxm_binding_identity`: `UNIQUE (tenant_key, binding_id)`
+
+Indexes:
+- `prc_proxyma_binding_links_pkey`: `CREATE UNIQUE INDEX prc_proxyma_binding_links_pkey ON public.prc_proxyma_binding_links USING btree (crawler_id, slot)`
+- `prc_pxm_binding_identity`: `CREATE UNIQUE INDEX prc_pxm_binding_identity ON public.prc_proxyma_binding_links USING btree (tenant_key, binding_id)`
+
+#### prc_proxyma_endpoint_links
+
+Owner: Services/Procurement/Proxyma/Migration; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| proxy_id | bigint / int8 | NO | bigint NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL |
+| endpoint_id | uuid / uuid | NO | uuid NOT NULL |
+
+Constraints:
+- `prc_proxyma_endpoint_links_pkey`: `PRIMARY KEY (proxy_id)`
+- `prc_proxyma_endpoint_links_proxy_id_foreign`: `FOREIGN KEY (proxy_id) REFERENCES prc_proxies(id)`
+- `prc_proxyma_endpoint_links_tenant_key_endpoint_id_unique`: `UNIQUE (tenant_key, endpoint_id)`
+
+Indexes:
+- `prc_proxyma_endpoint_links_pkey`: `CREATE UNIQUE INDEX prc_proxyma_endpoint_links_pkey ON public.prc_proxyma_endpoint_links USING btree (proxy_id)`
+- `prc_proxyma_endpoint_links_tenant_key_endpoint_id_unique`: `CREATE UNIQUE INDEX prc_proxyma_endpoint_links_tenant_key_endpoint_id_unique ON public.prc_proxyma_endpoint_links USING btree (tenant_key, endpoint_id)`
+
+#### prc_proxyma_owner_links
+
+Owner: Services/Procurement/Proxyma; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| tenant_key | text / text | NO | text NOT NULL |
+| owner_type | text / text | NO | text NOT NULL |
+| owner_id | uuid / uuid | NO | uuid NOT NULL |
+| generation | bigint / int8 | NO | bigint NOT NULL |
+| operation_id | uuid / uuid | NO | uuid NOT NULL |
+| parent_attempt_id | uuid / uuid | YES | uuid |
+
+Constraints:
+- `prc_proxyma_owner_links_parent_attempt_id_foreign`: `FOREIGN KEY (parent_attempt_id) REFERENCES prc_process_attempts(id)`
+- `prc_proxyma_owner_links_pkey`: `PRIMARY KEY (tenant_key, owner_type, owner_id, generation)`
+- `prc_proxyma_owner_links_valid`: `CHECK (((generation > 0) AND (owner_type = ANY (ARRAY['process_attempt'::text, 'outbound_operation'::text]))))`
+- `prc_pxm_owner_identity`: `UNIQUE (tenant_key, operation_id)`
+
+Indexes:
+- `prc_proxyma_owner_links_pkey`: `CREATE UNIQUE INDEX prc_proxyma_owner_links_pkey ON public.prc_proxyma_owner_links USING btree (tenant_key, owner_type, owner_id, generation)`
+- `prc_pxm_owner_identity`: `CREATE UNIQUE INDEX prc_pxm_owner_identity ON public.prc_proxyma_owner_links USING btree (tenant_key, operation_id)`
+
+#### prc_proxyma_profile_links
+
+Owner: Services/Procurement/Proxyma; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| source_profile_id | uuid / uuid | NO | uuid NOT NULL |
+| source_version | bigint / int8 | NO | bigint NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL |
+| profile_id | uuid / uuid | NO | uuid NOT NULL |
+| profile_version | bigint / int8 | NO | bigint NOT NULL |
+
+Constraints:
+- `prc_proxyma_profile_links_pkey`: `PRIMARY KEY (source_profile_id, source_version)`
+- `prc_proxyma_profile_links_source_profile_id_foreign`: `FOREIGN KEY (source_profile_id) REFERENCES prc_network_route_profiles(id)`
+- `prc_proxyma_profile_links_valid`: `CHECK (((source_version > 0) AND (profile_version > 0)))`
+- `prc_pxm_profile_identity`: `UNIQUE (tenant_key, profile_id, profile_version)`
+
+Indexes:
+- `prc_proxyma_profile_links_pkey`: `CREATE UNIQUE INDEX prc_proxyma_profile_links_pkey ON public.prc_proxyma_profile_links USING btree (source_profile_id, source_version)`
+- `prc_pxm_profile_identity`: `CREATE UNIQUE INDEX prc_pxm_profile_identity ON public.prc_proxyma_profile_links USING btree (tenant_key, profile_id, profile_version)`
+
+#### prc_proxyma_state_archive
+
+Owner: Services/Procurement/Proxyma/Migration; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| source_table | text / text | NO | text NOT NULL |
+| source_key | text / text | NO | text NOT NULL |
+| payload | jsonb / jsonb | NO | jsonb NOT NULL |
+| mapped_state | text / text | YES | text |
+| authorized_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
+
+Constraints:
+- `prc_proxyma_state_archive_check`: `CHECK (((mapped_state IS NULL) OR ((mapped_state = ANY (ARRAY['cancelled_before_send'::text, 'expired_before_send'::text])) AND (authorized_at IS NULL)) OR ((mapped_state = ANY (ARRAY['completed'::text, 'unknown_after_authorization'::text])) AND (authorized_at IS NOT NULL))))`
+- `prc_proxyma_state_archive_pkey`: `PRIMARY KEY (source_table, source_key)`
+
+Indexes:
+- `prc_proxyma_state_archive_pkey`: `CREATE UNIQUE INDEX prc_proxyma_state_archive_pkey ON public.prc_proxyma_state_archive USING btree (source_table, source_key)`
+
+#### prc_proxyma_target_links
+
+Owner: Services/Procurement/Proxyma; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| source_target_id | uuid / uuid | NO | uuid NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL |
+| target_id | uuid / uuid | NO | uuid NOT NULL |
+| source_revision | bigint / int8 | NO | bigint NOT NULL |
+
+Constraints:
+- `prc_proxyma_target_links_pkey`: `PRIMARY KEY (source_target_id)`
+- `prc_proxyma_target_links_source_target_id_foreign`: `FOREIGN KEY (source_target_id) REFERENCES prc_source_targets(id)`
+- `prc_proxyma_target_links_valid`: `CHECK ((source_revision > 0))`
+- `prc_pxm_target_identity`: `UNIQUE (tenant_key, target_id)`
+
+Indexes:
+- `prc_proxyma_target_links_pkey`: `CREATE UNIQUE INDEX prc_proxyma_target_links_pkey ON public.prc_proxyma_target_links USING btree (source_target_id)`
+- `prc_pxm_target_identity`: `CREATE UNIQUE INDEX prc_pxm_target_identity ON public.prc_proxyma_target_links USING btree (tenant_key, target_id)`
+
+#### prc_proxyma_transfer_records
+
+Owner: Services/Procurement/Proxyma/Migration; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| target_table | text / text | NO | text NOT NULL |
+| target_key | text / text | NO | text NOT NULL |
+| cutover_id | uuid / uuid | NO | uuid NOT NULL |
+| identity | jsonb / jsonb | NO | jsonb NOT NULL |
+| imported | jsonb / jsonb | NO | jsonb NOT NULL |
+| checksum | character / bpchar | NO | character(64) NOT NULL |
+
+Constraints:
+- `prc_proxyma_transfer_records_check`: `CHECK (((checksum ~ '^[0-9a-f]{64}$'::text) AND (jsonb_typeof(identity) = 'object'::text) AND (jsonb_typeof(imported) = 'object'::text)))`
+- `prc_proxyma_transfer_records_cutover_id_foreign`: `FOREIGN KEY (cutover_id) REFERENCES prc_network_cutover_journals(id)`
+- `prc_proxyma_transfer_records_pkey`: `PRIMARY KEY (target_table, target_key)`
+
+Indexes:
+- `prc_proxyma_transfer_records_pkey`: `CREATE UNIQUE INDEX prc_proxyma_transfer_records_pkey ON public.prc_proxyma_transfer_records USING btree (target_table, target_key)`
+
 #### prc_raw_artifacts
 
 Owner: Procurement; retention: artifacts.
@@ -5337,832 +6130,6 @@ Indexes:
 - `pulse_values_timestamp_index`: `CREATE INDEX pulse_values_timestamp_index ON public.pulse_values USING btree ("timestamp")`
 - `pulse_values_type_index`: `CREATE INDEX pulse_values_type_index ON public.pulse_values USING btree (type)`
 - `pulse_values_type_key_hash_unique`: `CREATE UNIQUE INDEX pulse_values_type_key_hash_unique ON public.pulse_values USING btree (type, key_hash)`
-
-#### ref_kbk
-
-Owner: Reference; retention: business.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | bigint / int8 | NO | bigint NOT NULL |
-| code | character varying / varchar | NO | character varying(255) NOT NULL |
-| parent_code | character varying / varchar | YES | character varying(255) |
-| level | integer / int4 | NO | integer NOT NULL |
-| name | character varying / varchar | NO | character varying(255) NOT NULL |
-| valid_from | date / date | NO | date NOT NULL |
-| valid_to | date / date | YES | date |
-| attributes | jsonb / jsonb | YES | jsonb |
-| created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-| updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-
-Constraints:
-- `ref_kbk_code_unique`: `UNIQUE (code)`
-- `ref_kbk_pkey`: `PRIMARY KEY (id)`
-
-Indexes:
-- `ref_kbk_code_unique`: `CREATE UNIQUE INDEX ref_kbk_code_unique ON public.ref_kbk USING btree (code)`
-- `ref_kbk_parent_code_index`: `CREATE INDEX ref_kbk_parent_code_index ON public.ref_kbk USING btree (parent_code)`
-- `ref_kbk_pkey`: `CREATE UNIQUE INDEX ref_kbk_pkey ON public.ref_kbk USING btree (id)`
-
-#### ref_ktru
-
-Owner: Reference; retention: business.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | bigint / int8 | NO | bigint NOT NULL |
-| code | character varying / varchar | NO | character varying(255) NOT NULL |
-| parent_code | character varying / varchar | YES | character varying(255) |
-| level | integer / int4 | NO | integer NOT NULL |
-| name | character varying / varchar | NO | character varying(255) NOT NULL |
-| okpd2_code | character varying / varchar | YES | character varying(255) |
-| valid_from | date / date | NO | date NOT NULL |
-| valid_to | date / date | YES | date |
-| attributes | jsonb / jsonb | YES | jsonb |
-| created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-| updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-
-Constraints:
-- `ref_ktru_code_unique`: `UNIQUE (code)`
-- `ref_ktru_pkey`: `PRIMARY KEY (id)`
-
-Indexes:
-- `ref_ktru_code_unique`: `CREATE UNIQUE INDEX ref_ktru_code_unique ON public.ref_ktru USING btree (code)`
-- `ref_ktru_parent_code_index`: `CREATE INDEX ref_ktru_parent_code_index ON public.ref_ktru USING btree (parent_code)`
-- `ref_ktru_pkey`: `CREATE UNIQUE INDEX ref_ktru_pkey ON public.ref_ktru USING btree (id)`
-
-#### ref_okpd2
-
-Owner: Reference; retention: business.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | bigint / int8 | NO | bigint NOT NULL |
-| code | character varying / varchar | NO | character varying(255) NOT NULL |
-| parent_code | character varying / varchar | YES | character varying(255) |
-| level | integer / int4 | NO | integer NOT NULL |
-| name | character varying / varchar | NO | character varying(255) NOT NULL |
-| valid_from | date / date | NO | date NOT NULL |
-| valid_to | date / date | YES | date |
-| attributes | jsonb / jsonb | YES | jsonb |
-| created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-| updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-
-Constraints:
-- `ref_okpd2_code_unique`: `UNIQUE (code)`
-- `ref_okpd2_pkey`: `PRIMARY KEY (id)`
-
-Indexes:
-- `ref_okpd2_code_unique`: `CREATE UNIQUE INDEX ref_okpd2_code_unique ON public.ref_okpd2 USING btree (code)`
-- `ref_okpd2_parent_code_index`: `CREATE INDEX ref_okpd2_parent_code_index ON public.ref_okpd2 USING btree (parent_code)`
-- `ref_okpd2_pkey`: `CREATE UNIQUE INDEX ref_okpd2_pkey ON public.ref_okpd2 USING btree (id)`
-
-#### ref_okved2
-
-Owner: Reference; retention: business.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | bigint / int8 | NO | bigint NOT NULL |
-| code | character varying / varchar | NO | character varying(255) NOT NULL |
-| parent_code | character varying / varchar | YES | character varying(255) |
-| level | integer / int4 | NO | integer NOT NULL |
-| name | character varying / varchar | NO | character varying(255) NOT NULL |
-| valid_from | date / date | NO | date NOT NULL |
-| valid_to | date / date | YES | date |
-| attributes | jsonb / jsonb | YES | jsonb |
-| created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-| updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-
-Constraints:
-- `ref_okved2_code_unique`: `UNIQUE (code)`
-- `ref_okved2_pkey`: `PRIMARY KEY (id)`
-
-Indexes:
-- `ref_okved2_code_unique`: `CREATE UNIQUE INDEX ref_okved2_code_unique ON public.ref_okved2 USING btree (code)`
-- `ref_okved2_parent_code_index`: `CREATE INDEX ref_okved2_parent_code_index ON public.ref_okved2 USING btree (parent_code)`
-- `ref_okved2_pkey`: `CREATE UNIQUE INDEX ref_okved2_pkey ON public.ref_okved2 USING btree (id)`
-
-#### sessions
-
-Owner: Framework/vendor; retention: runtime.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | character varying / varchar | NO | character varying(255) NOT NULL |
-| user_id | bigint / int8 | YES | bigint |
-| ip_address | character varying / varchar | YES | character varying(45) |
-| user_agent | text / text | YES | text |
-| payload | text / text | NO | text NOT NULL |
-| last_activity | integer / int4 | NO | integer NOT NULL |
-
-Constraints:
-- `sessions_pkey`: `PRIMARY KEY (id)`
-
-Indexes:
-- `sessions_last_activity_index`: `CREATE INDEX sessions_last_activity_index ON public.sessions USING btree (last_activity)`
-- `sessions_pkey`: `CREATE UNIQUE INDEX sessions_pkey ON public.sessions USING btree (id)`
-- `sessions_user_id_index`: `CREATE INDEX sessions_user_id_index ON public.sessions USING btree (user_id)`
-
-#### users
-
-Owner: Framework/vendor; retention: business.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | bigint / int8 | NO | bigint NOT NULL |
-| name | character varying / varchar | NO | character varying(255) NOT NULL |
-| email | character varying / varchar | NO | character varying(255) NOT NULL |
-| email_verified_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-| password | character varying / varchar | NO | character varying(255) NOT NULL |
-| remember_token | character varying / varchar | YES | character varying(100) |
-| created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-| updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-
-Constraints:
-- `users_email_unique`: `UNIQUE (email)`
-- `users_pkey`: `PRIMARY KEY (id)`
-
-Indexes:
-- `users_email_unique`: `CREATE UNIQUE INDEX users_email_unique ON public.users USING btree (email)`
-- `users_pkey`: `CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)`
-
-#### prc_analysis_chunks
-
-Owner: P3.8 canonical analysis / Repositories/Procurement/Ai; retention: business.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | uuid / uuid | NO | uuid NOT NULL |
-| run_id | uuid / uuid | NO | uuid NOT NULL |
-| window_id | uuid / uuid | NO | uuid NOT NULL |
-| window_key | text / text | NO | text NOT NULL |
-| recipe_hash | bytea / bytea | NO | bytea NOT NULL |
-| subrange_key | bytea / bytea | NO | bytea NOT NULL |
-| output_ordinal | bigint / int8 | NO | bigint NOT NULL |
-| output_ref | jsonb / jsonb | NO | jsonb NOT NULL |
-| output_ref_schema_version | smallint / int2 | NO | smallint NOT NULL |
-| output_hash | bytea / bytea | NO | bytea NOT NULL |
-| canonical_rows | jsonb / jsonb | NO | jsonb NOT NULL |
-| canonical_rows_schema_version | smallint / int2 | NO | smallint NOT NULL |
-| provenance | jsonb / jsonb | NO | jsonb NOT NULL |
-| provenance_schema_version | smallint / int2 | NO | smallint NOT NULL |
-| completed_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-
-Constraints:
-- `prc_analysis_chunks_canonical_rows_schema_version_check`: `CHECK ((canonical_rows_schema_version > 0))`
-- `prc_analysis_chunks_output_hash_check`: `CHECK ((octet_length(output_hash) = 32))`
-- `prc_analysis_chunks_output_ordinal_check`: `CHECK ((output_ordinal >= 0))`
-- `prc_analysis_chunks_output_ref_schema_version_check`: `CHECK ((output_ref_schema_version > 0))`
-- `prc_analysis_chunks_pkey`: `PRIMARY KEY (id)`
-- `prc_analysis_chunks_provenance_schema_version_check`: `CHECK ((provenance_schema_version > 0))`
-- `prc_analysis_chunks_recipe_fk`: `FOREIGN KEY (run_id, recipe_hash) REFERENCES prc_analysis_runs(id, recipe_hash)`
-- `prc_analysis_chunks_recipe_hash_check`: `CHECK ((octet_length(recipe_hash) = 32))`
-- `prc_analysis_chunks_run_id_fkey`: `FOREIGN KEY (run_id) REFERENCES prc_analysis_runs(id)`
-- `prc_analysis_chunks_run_id_window_key_recipe_hash_subrange__key`: `UNIQUE (run_id, window_key, recipe_hash, subrange_key, output_ordinal)`
-- `prc_analysis_chunks_subrange_key_check`: `CHECK ((octet_length(subrange_key) = 32))`
-- `prc_analysis_chunks_window_id_fkey`: `FOREIGN KEY (window_id) REFERENCES prc_analysis_windows(id)`
-- `prc_analysis_chunks_window_identity_fk`: `FOREIGN KEY (window_id, run_id, window_key) REFERENCES prc_analysis_windows(id, run_id, window_key)`
-
-Indexes:
-- `prc_analysis_chunks_pkey`: `CREATE UNIQUE INDEX prc_analysis_chunks_pkey ON public.prc_analysis_chunks USING btree (id)`
-- `prc_analysis_chunks_run_id_window_key_recipe_hash_subrange__key`: `CREATE UNIQUE INDEX prc_analysis_chunks_run_id_window_key_recipe_hash_subrange__key ON public.prc_analysis_chunks USING btree (run_id, window_key, recipe_hash, subrange_key, output_ordinal)`
-
-#### prc_analysis_runs
-
-Owner: P3.8 canonical analysis / Repositories/Procurement/Ai; retention: business.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | uuid / uuid | NO | uuid NOT NULL |
-| document_version_id | bigint / int8 | NO | bigint NOT NULL |
-| representation_id | bigint / int8 | NO | bigint NOT NULL |
-| representation_hash | bytea / bytea | NO | bytea NOT NULL |
-| recipe_json | jsonb / jsonb | NO | jsonb NOT NULL |
-| recipe_schema_version | smallint / int2 | NO | smallint NOT NULL |
-| recipe_hash | bytea / bytea | NO | bytea NOT NULL |
-| generation | bigint / int8 | NO | bigint NOT NULL |
-| expected_document_head_generation | bigint / int8 | NO | bigint NOT NULL |
-| expected_analysis_generation | bigint / int8 | NO | bigint NOT NULL |
-| requested_reason | text / text | NO | text NOT NULL |
-| supersedes_run_id | uuid / uuid | YES | uuid |
-| publication_status | text / text | NO | text NOT NULL |
-| screening_result | jsonb / jsonb | YES | jsonb |
-| screening_result_schema_version | smallint / int2 | YES | smallint |
-| screening_disposition | text / text | YES | text |
-| declared_coverage | jsonb / jsonb | YES | jsonb |
-| declared_coverage_schema_version | smallint / int2 | YES | smallint |
-| publication_digest | bytea / bytea | YES | bytea |
-
-Constraints:
-- `prc_analysis_runs_coverage_pair`: `CHECK (((declared_coverage IS NULL) = (declared_coverage_schema_version IS NULL)))`
-- `prc_analysis_runs_coverage_schema`: `CHECK (((declared_coverage_schema_version IS NULL) OR (declared_coverage_schema_version = ANY (ARRAY[1, 2]))))`
-- `prc_analysis_runs_coverage_source`: `CHECK (((declared_coverage_schema_version IS DISTINCT FROM 2) OR ((NOT (jsonb_typeof((declared_coverage -> 'source'::text)) IS DISTINCT FROM 'object'::text)) AND ((NOT (jsonb_typeof((declared_coverage -> 'estimates'::text)) IS DISTINCT FROM 'null'::text)) OR (NOT (jsonb_typeof((declared_coverage -> 'estimates'::text)) IS DISTINCT FROM 'array'::text))))))`
-- `prc_analysis_runs_document_version_id_fkey`: `FOREIGN KEY (document_version_id) REFERENCES prc_document_versions(id)`
-- `prc_analysis_runs_expected_analysis_generation_check`: `CHECK ((expected_analysis_generation >= 1))`
-- `prc_analysis_runs_expected_document_head_generation_check`: `CHECK ((expected_document_head_generation >= 1))`
-- `prc_analysis_runs_generation_check`: `CHECK ((generation >= 1))`
-- `prc_analysis_runs_id_recipe_unique`: `UNIQUE (id, recipe_hash)`
-- `prc_analysis_runs_pkey`: `PRIMARY KEY (id)`
-- `prc_analysis_runs_publication_check`: `CHECK ((publication_status = ANY (ARRAY['unpublished'::text, 'published'::text])))`
-- `prc_analysis_runs_publication_digest_check`: `CHECK (((publication_digest IS NULL) OR (octet_length(publication_digest) = 32)))`
-- `prc_analysis_runs_publication_pair`: `CHECK (((publication_status = 'published'::text) = (publication_digest IS NOT NULL)))`
-- `prc_analysis_runs_recipe_hash_check`: `CHECK ((octet_length(recipe_hash) = 32))`
-- `prc_analysis_runs_recipe_schema_version_check`: `CHECK ((recipe_schema_version > 0))`
-- `prc_analysis_runs_representation_hash_check`: `CHECK ((octet_length(representation_hash) = 32))`
-- `prc_analysis_runs_representation_id_fkey`: `FOREIGN KEY (representation_id) REFERENCES prc_document_representations(id)`
-- `prc_analysis_runs_representation_identity_fk`: `FOREIGN KEY (representation_id, document_version_id, representation_hash) REFERENCES prc_document_representations(id, document_version_id, content_hash)`
-- `prc_analysis_runs_screening_disposition_check`: `CHECK ((screening_disposition = ANY (ARRAY['extract'::text, 'retain'::text, 'review'::text, 'ignore'::text])))`
-- `prc_analysis_runs_screening_disposition_pair`: `CHECK (((screening_result IS NULL) = (screening_disposition IS NULL)))`
-- `prc_analysis_runs_screening_schema_check`: `CHECK (((screening_result_schema_version IS NULL) OR (screening_result_schema_version = 1)))`
-- `prc_analysis_runs_screening_schema_pair`: `CHECK (((screening_result IS NULL) = (screening_result_schema_version IS NULL)))`
-- `prc_analysis_runs_supersedes_run_id_fkey`: `FOREIGN KEY (supersedes_run_id) REFERENCES prc_analysis_runs(id)`
-- `prc_analysis_runs_version_identity_unique`: `UNIQUE (id, document_version_id)`
-
-Indexes:
-- `prc_analysis_runs_document_version_idx`: `CREATE INDEX prc_analysis_runs_document_version_idx ON public.prc_analysis_runs USING btree (document_version_id)`
-- `prc_analysis_runs_id_recipe_unique`: `CREATE UNIQUE INDEX prc_analysis_runs_id_recipe_unique ON public.prc_analysis_runs USING btree (id, recipe_hash)`
-- `prc_analysis_runs_pkey`: `CREATE UNIQUE INDEX prc_analysis_runs_pkey ON public.prc_analysis_runs USING btree (id)`
-- `prc_analysis_runs_version_identity_unique`: `CREATE UNIQUE INDEX prc_analysis_runs_version_identity_unique ON public.prc_analysis_runs USING btree (id, document_version_id)`
-
-#### prc_analysis_windows
-
-Owner: P3.8 canonical analysis / Repositories/Procurement/Ai; retention: business.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | uuid / uuid | NO | uuid NOT NULL |
-| run_id | uuid / uuid | NO | uuid NOT NULL |
-| window_key | text / text | NO | text NOT NULL |
-| input_hash | bytea / bytea | NO | bytea NOT NULL |
-| input_range | jsonb / jsonb | NO | jsonb NOT NULL |
-| input_range_schema_version | smallint / int2 | NO | smallint NOT NULL |
-| expected_coverage | jsonb / jsonb | NO | jsonb NOT NULL |
-| expected_coverage_schema_version | smallint / int2 | NO | smallint NOT NULL |
-| state | text / text | NO | text NOT NULL |
-| checkpoint_version | bigint / int8 | NO | bigint NOT NULL |
-
-Constraints:
-- `prc_analysis_windows_checkpoint_version_check`: `CHECK ((checkpoint_version >= 0))`
-- `prc_analysis_windows_expected_coverage_schema_version_check`: `CHECK ((expected_coverage_schema_version > 0))`
-- `prc_analysis_windows_identity_unique`: `UNIQUE (id, run_id, window_key)`
-- `prc_analysis_windows_input_hash_check`: `CHECK ((octet_length(input_hash) = 32))`
-- `prc_analysis_windows_input_range_schema_version_check`: `CHECK ((input_range_schema_version > 0))`
-- `prc_analysis_windows_pkey`: `PRIMARY KEY (id)`
-- `prc_analysis_windows_run_id_fkey`: `FOREIGN KEY (run_id) REFERENCES prc_analysis_runs(id)`
-- `prc_analysis_windows_run_id_window_key_key`: `UNIQUE (run_id, window_key)`
-
-Indexes:
-- `prc_analysis_windows_identity_unique`: `CREATE UNIQUE INDEX prc_analysis_windows_identity_unique ON public.prc_analysis_windows USING btree (id, run_id, window_key)`
-- `prc_analysis_windows_pkey`: `CREATE UNIQUE INDEX prc_analysis_windows_pkey ON public.prc_analysis_windows USING btree (id)`
-- `prc_analysis_windows_run_id_window_key_key`: `CREATE UNIQUE INDEX prc_analysis_windows_run_id_window_key_key ON public.prc_analysis_windows USING btree (run_id, window_key)`
-
-#### llm_budget_accounts
-
-Owner: P3.9; retention: financial.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| account_id | text / text | NO | text NOT NULL |
-| currency | text / text | NO | text NOT NULL |
-| unknown_count_threshold | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
-| hard_exposure_cap | numeric / numeric | YES | numeric(24,8) |
-| policy_version | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
-| policy_actor | text / text | NO | text NOT NULL |
-| policy_reason | text / text | NO | text NOT NULL |
-
-Constraints:
-- `llm_budget_accounts_account_id_key`: `UNIQUE (account_id)`
-- `llm_budget_accounts_currency_check`: `CHECK ((currency ~ '^[A-Z]{3}$'::text))`
-- `llm_budget_accounts_hard_exposure_cap_check`: `CHECK ((hard_exposure_cap >= (0)::numeric))`
-- `llm_budget_accounts_pkey`: `PRIMARY KEY (account_id, currency)`
-- `llm_budget_accounts_policy_version_check`: `CHECK ((policy_version >= 1))`
-- `llm_budget_accounts_unknown_count_threshold_check`: `CHECK ((unknown_count_threshold >= 1))`
-
-Indexes:
-- `llm_budget_accounts_account_id_key`: `CREATE UNIQUE INDEX llm_budget_accounts_account_id_key ON public.llm_budget_accounts USING btree (account_id)`
-- `llm_budget_accounts_pkey`: `CREATE UNIQUE INDEX llm_budget_accounts_pkey ON public.llm_budget_accounts USING btree (account_id, currency)`
-
-#### llm_budget_periods
-
-Owner: P3.9; retention: financial.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | uuid / uuid | NO | uuid NOT NULL |
-| account_id | text / text | NO | text NOT NULL |
-| currency | text / text | NO | text NOT NULL |
-| period_start | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-| period_end | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-| cap | numeric / numeric | NO | numeric(24,8) NOT NULL |
-| spent | numeric / numeric | NO | numeric(24,8) DEFAULT 0 NOT NULL |
-| reserved | numeric / numeric | NO | numeric(24,8) DEFAULT 0 NOT NULL |
-
-Constraints:
-- `llm_budget_periods_account_id_currency_fkey`: `FOREIGN KEY (account_id, currency) REFERENCES llm_budget_accounts(account_id, currency)`
-- `llm_budget_periods_account_id_currency_period_start_period__key`: `UNIQUE (account_id, currency, period_start, period_end)`
-- `llm_budget_periods_cap_check`: `CHECK ((cap >= (0)::numeric))`
-- `llm_budget_periods_check`: `CHECK ((period_end > period_start))`
-- `llm_budget_periods_check1`: `CHECK (((spent + reserved) <= cap))`
-- `llm_budget_periods_pkey`: `PRIMARY KEY (id)`
-- `llm_budget_periods_reserved_check`: `CHECK ((reserved >= (0)::numeric))`
-- `llm_budget_periods_spent_check`: `CHECK ((spent >= (0)::numeric))`
-
-Indexes:
-- `llm_budget_periods_account_id_currency_period_start_period__key`: `CREATE UNIQUE INDEX llm_budget_periods_account_id_currency_period_start_period__key ON public.llm_budget_periods USING btree (account_id, currency, period_start, period_end)`
-- `llm_budget_periods_pkey`: `CREATE UNIQUE INDEX llm_budget_periods_pkey ON public.llm_budget_periods USING btree (id)`
-
-#### llm_provider_requests
-
-Owner: P3.9; retention: financial.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| logical_request_id | uuid / uuid | NO | uuid NOT NULL |
-| logical_key | bytea / bytea | NO | bytea NOT NULL |
-| recipe_hash | bytea / bytea | NO | bytea NOT NULL |
-| input_hash | bytea / bytea | NO | bytea NOT NULL |
-| purpose | text / text | NO | text NOT NULL |
-| semantic_reask_ordinal | bigint / int8 | NO | bigint NOT NULL |
-| replay_intent_id | uuid / uuid | NO | uuid NOT NULL |
-| replay_of | uuid / uuid | YES | uuid |
-| command_id | uuid / uuid | YES | uuid |
-| replay_actor | text / text | YES | text |
-| replay_reason | text / text | YES | text |
-| state | text / text | NO | text NOT NULL |
-| request_epoch | bigint / int8 | NO | bigint NOT NULL |
-| idempotency_key | text / text | YES | text |
-| consumer_correlation_id | text / text | NO | text NOT NULL |
-| reservation_amount | numeric / numeric | NO | numeric(24,8) DEFAULT 0 NOT NULL |
-| context_json | jsonb / jsonb | NO | jsonb NOT NULL |
-| context_schema_version | smallint / int2 | NO | smallint NOT NULL |
-| max_physical_attempts | bigint / int8 | NO | bigint NOT NULL |
-
-Constraints:
-- `llm_provider_requests_check`: `CHECK (((replay_of IS NULL) = (command_id IS NULL)))`
-- `llm_provider_requests_check1`: `CHECK (((command_id IS NULL) = (replay_actor IS NULL)))`
-- `llm_provider_requests_check2`: `CHECK (((command_id IS NULL) = (replay_reason IS NULL)))`
-- `llm_provider_requests_command_id_key`: `UNIQUE (command_id)`
-- `llm_provider_requests_context_schema_version_check`: `CHECK ((context_schema_version = 1))`
-- `llm_provider_requests_input_hash_check`: `CHECK ((octet_length(input_hash) = 32))`
-- `llm_provider_requests_logical_key_check`: `CHECK ((octet_length(logical_key) = 32))`
-- `llm_provider_requests_logical_key_key`: `UNIQUE (logical_key)`
-- `llm_provider_requests_max_physical_attempts_check`: `CHECK (((max_physical_attempts >= 1) AND (max_physical_attempts <= 10)))`
-- `llm_provider_requests_pkey`: `PRIMARY KEY (logical_request_id)`
-- `llm_provider_requests_purpose_check`: `CHECK ((purpose = ANY (ARRAY['generate'::text, 'cache_create'::text, 'cache_refresh'::text, 'cache_storage'::text, 'file_upload'::text, 'lookup'::text])))`
-- `llm_provider_requests_recipe_hash_check`: `CHECK ((octet_length(recipe_hash) = 32))`
-- `llm_provider_requests_replay_of_fkey`: `FOREIGN KEY (replay_of) REFERENCES llm_provider_requests(logical_request_id)`
-- `llm_provider_requests_request_epoch_check`: `CHECK ((request_epoch >= 1))`
-- `llm_provider_requests_reservation_amount_check`: `CHECK ((reservation_amount >= (0)::numeric))`
-- `llm_provider_requests_semantic_reask_ordinal_check`: `CHECK (((semantic_reask_ordinal >= 0) AND (semantic_reask_ordinal <= 1)))`
-- `llm_provider_requests_state_check`: `CHECK ((state = ANY (ARRAY['prepared'::text, 'sending'::text, 'completed'::text, 'failed_known'::text, 'unknown'::text, 'abandoned_unknown'::text])))`
-
-Indexes:
-- `llm_provider_requests_command_id_key`: `CREATE UNIQUE INDEX llm_provider_requests_command_id_key ON public.llm_provider_requests USING btree (command_id)`
-- `llm_provider_requests_logical_key_key`: `CREATE UNIQUE INDEX llm_provider_requests_logical_key_key ON public.llm_provider_requests USING btree (logical_key)`
-- `llm_provider_requests_pkey`: `CREATE UNIQUE INDEX llm_provider_requests_pkey ON public.llm_provider_requests USING btree (logical_request_id)`
-- `llm_provider_requests_unknown_state_idx`: `CREATE INDEX llm_provider_requests_unknown_state_idx ON public.llm_provider_requests USING btree (logical_request_id) WHERE (state = ANY (ARRAY['unknown'::text, 'abandoned_unknown'::text]))`
-
-#### llm_provider_calls
-
-Owner: P3.9; retention: financial.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| physical_call_id | uuid / uuid | NO | uuid NOT NULL |
-| logical_request_id | uuid / uuid | NO | uuid NOT NULL |
-| ordinal | bigint / int8 | NO | bigint NOT NULL |
-| provider_id | bigint / int8 | NO | bigint NOT NULL |
-| account_id | text / text | NO | text NOT NULL |
-| api_surface | text / text | NO | text NOT NULL |
-| model | text / text | NO | text NOT NULL |
-| resolved_model_version | text / text | YES | text |
-| request_epoch | bigint / int8 | NO | bigint NOT NULL |
-| owner_attempt_id | uuid / uuid | NO | uuid NOT NULL |
-| owner_work_generation | bigint / int8 | NO | bigint NOT NULL |
-| send_authorization_token | uuid / uuid | NO | uuid NOT NULL |
-| send_claimed_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| sent_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| response_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| wire_fingerprint | bytea / bytea | YES | bytea |
-| http_status | smallint / int2 | YES | smallint |
-| finish_reason | text / text | YES | text |
-| usage_status | text / text | NO | text NOT NULL |
-| usage | jsonb / jsonb | YES | jsonb |
-| usage_schema_version | smallint / int2 | YES | smallint |
-| cost_estimate | numeric / numeric | NO | numeric(24,8) NOT NULL |
-| cost_actual | numeric / numeric | YES | numeric(24,8) |
-| receipt_id | uuid / uuid | YES | uuid |
-| receipt_state | text / text | NO | text NOT NULL |
-| receipt_upload_key | text / text | NO | text NOT NULL |
-| receipt_disk | text / text | YES | text |
-| receipt_key | text / text | YES | text |
-| receipt_hash | bytea / bytea | YES | bytea |
-| receipt_schema_version | smallint / int2 | YES | smallint |
-| reservation_id | uuid / uuid | NO | uuid NOT NULL |
-| outcome | text / text | YES | text |
-| charge_evidence | text / text | YES | text |
-
-Constraints:
-- `llm_provider_calls_check`: `CHECK (((usage IS NULL) = (usage_schema_version IS NULL)))`
-- `llm_provider_calls_check1`: `CHECK (((receipt_key IS NULL) = (receipt_hash IS NULL)))`
-- `llm_provider_calls_check2`: `CHECK (((receipt_key IS NULL) = (receipt_schema_version IS NULL)))`
-- `llm_provider_calls_check3`: `CHECK (((receipt_state = 'verified'::text) = (receipt_key IS NOT NULL)))`
-- `llm_provider_calls_check4`: `CHECK (((receipt_state <> ALL (ARRAY['verified'::text, 'unknown'::text])) OR (send_claimed_at IS NOT NULL)))`
-- `llm_provider_calls_check5`: `CHECK (((receipt_state <> 'not_sent'::text) OR ((send_claimed_at IS NULL) AND (cost_actual = (0)::numeric))))`
-- `llm_provider_calls_check6`: `CHECK (((receipt_key IS NULL) OR (receipt_key = receipt_upload_key)))`
-- `llm_provider_calls_cost_actual_check`: `CHECK ((cost_actual >= (0)::numeric))`
-- `llm_provider_calls_cost_estimate_check`: `CHECK ((cost_estimate >= (0)::numeric))`
-- `llm_provider_calls_http_status_check`: `CHECK (((http_status >= 100) AND (http_status <= 599)))`
-- `llm_provider_calls_logical_request_id_fkey`: `FOREIGN KEY (logical_request_id) REFERENCES llm_provider_requests(logical_request_id)`
-- `llm_provider_calls_logical_request_id_ordinal_key`: `UNIQUE (logical_request_id, ordinal)`
-- `llm_provider_calls_ordinal_check`: `CHECK ((ordinal >= 1))`
-- `llm_provider_calls_outcome_check`: `CHECK ((outcome = ANY (ARRAY['not_sent'::text, 'success'::text, 'known_nonbillable_cache_miss'::text, 'known_retryable_nonbillable'::text, 'billed_error'::text, 'unknown'::text])))`
-- `llm_provider_calls_owner_work_generation_check`: `CHECK ((owner_work_generation >= 1))`
-- `llm_provider_calls_physical_call_id_logical_request_id_key`: `UNIQUE (physical_call_id, logical_request_id)`
-- `llm_provider_calls_pkey`: `PRIMARY KEY (physical_call_id)`
-- `llm_provider_calls_provider_id_fkey`: `FOREIGN KEY (provider_id) REFERENCES llm_providers(id)`
-- `llm_provider_calls_receipt_hash_check`: `CHECK ((octet_length(receipt_hash) = 32))`
-- `llm_provider_calls_receipt_id_key`: `UNIQUE (receipt_id)`
-- `llm_provider_calls_receipt_schema_version_check`: `CHECK ((receipt_schema_version = 1))`
-- `llm_provider_calls_receipt_state_check`: `CHECK ((receipt_state = ANY (ARRAY['pending'::text, 'verified'::text, 'not_sent'::text, 'unknown'::text])))`
-- `llm_provider_calls_receipt_upload_key_key`: `UNIQUE (receipt_upload_key)`
-- `llm_provider_calls_request_epoch_check`: `CHECK ((request_epoch >= 1))`
-- `llm_provider_calls_reservation_fk`: `FOREIGN KEY (reservation_id, physical_call_id) REFERENCES llm_budget_reservations(id, operation_id) DEFERRABLE INITIALLY DEFERRED`
-- `llm_provider_calls_reservation_id_key`: `UNIQUE (reservation_id)`
-- `llm_provider_calls_usage_schema_version_check`: `CHECK ((usage_schema_version > 0))`
-- `llm_provider_calls_usage_status_check`: `CHECK ((usage_status = ANY (ARRAY['known'::text, 'unknown'::text])))`
-- `llm_provider_calls_wire_fingerprint_check`: `CHECK ((octet_length(wire_fingerprint) = 32))`
-
-Indexes:
-- `llm_provider_calls_account_idx`: `CREATE INDEX llm_provider_calls_account_idx ON public.llm_provider_calls USING btree (account_id, logical_request_id)`
-- `llm_provider_calls_logical_request_id_ordinal_key`: `CREATE UNIQUE INDEX llm_provider_calls_logical_request_id_ordinal_key ON public.llm_provider_calls USING btree (logical_request_id, ordinal)`
-- `llm_provider_calls_physical_call_id_logical_request_id_key`: `CREATE UNIQUE INDEX llm_provider_calls_physical_call_id_logical_request_id_key ON public.llm_provider_calls USING btree (physical_call_id, logical_request_id)`
-- `llm_provider_calls_pkey`: `CREATE UNIQUE INDEX llm_provider_calls_pkey ON public.llm_provider_calls USING btree (physical_call_id)`
-- `llm_provider_calls_receipt_id_key`: `CREATE UNIQUE INDEX llm_provider_calls_receipt_id_key ON public.llm_provider_calls USING btree (receipt_id)`
-- `llm_provider_calls_receipt_upload_key_key`: `CREATE UNIQUE INDEX llm_provider_calls_receipt_upload_key_key ON public.llm_provider_calls USING btree (receipt_upload_key)`
-- `llm_provider_calls_reservation_id_key`: `CREATE UNIQUE INDEX llm_provider_calls_reservation_id_key ON public.llm_provider_calls USING btree (reservation_id)`
-- `llm_provider_calls_send_time_idx`: `CREATE INDEX llm_provider_calls_send_time_idx ON public.llm_provider_calls USING btree (COALESCE(sent_at, send_claimed_at))`
-
-#### llm_budget_reservations
-
-Owner: P3.9; retention: financial.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | uuid / uuid | NO | uuid NOT NULL |
-| operation_id | uuid / uuid | NO | uuid NOT NULL |
-| period_id | uuid / uuid | NO | uuid NOT NULL |
-| upper_bound | numeric / numeric | NO | numeric(24,8) NOT NULL |
-| state | text / text | NO | text NOT NULL |
-| settled_amount | numeric / numeric | YES | numeric(24,8) |
-| pricing_snapshot | jsonb / jsonb | NO | jsonb NOT NULL |
-| pricing_snapshot_schema_version | smallint / int2 | NO | smallint NOT NULL |
-
-Constraints:
-- `llm_budget_reservations_check`: `CHECK (((state = 'settled'::text) = (settled_amount IS NOT NULL)))`
-- `llm_budget_reservations_check1`: `CHECK (((settled_amount >= (0)::numeric) AND (settled_amount <= upper_bound)))`
-- `llm_budget_reservations_id_operation_id_key`: `UNIQUE (id, operation_id)`
-- `llm_budget_reservations_operation_id_fkey`: `FOREIGN KEY (operation_id) REFERENCES llm_provider_calls(physical_call_id)`
-- `llm_budget_reservations_operation_id_key`: `UNIQUE (operation_id)`
-- `llm_budget_reservations_period_id_fkey`: `FOREIGN KEY (period_id) REFERENCES llm_budget_periods(id)`
-- `llm_budget_reservations_pkey`: `PRIMARY KEY (id)`
-- `llm_budget_reservations_pricing_snapshot_schema_version_check`: `CHECK ((pricing_snapshot_schema_version = 1))`
-- `llm_budget_reservations_state_check`: `CHECK ((state = ANY (ARRAY['reserved'::text, 'settled'::text])))`
-- `llm_budget_reservations_upper_bound_check`: `CHECK ((upper_bound >= (0)::numeric))`
-
-Indexes:
-- `llm_budget_reservations_id_operation_id_key`: `CREATE UNIQUE INDEX llm_budget_reservations_id_operation_id_key ON public.llm_budget_reservations USING btree (id, operation_id)`
-- `llm_budget_reservations_operation_id_key`: `CREATE UNIQUE INDEX llm_budget_reservations_operation_id_key ON public.llm_budget_reservations USING btree (operation_id)`
-- `llm_budget_reservations_period_state_idx`: `CREATE INDEX llm_budget_reservations_period_state_idx ON public.llm_budget_reservations USING btree (period_id, state)`
-- `llm_budget_reservations_pkey`: `CREATE UNIQUE INDEX llm_budget_reservations_pkey ON public.llm_budget_reservations USING btree (id)`
-
-#### prc_analysis_llm_requests
-
-Owner: P3.9; retention: financial.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | uuid / uuid | NO | uuid NOT NULL |
-| analysis_run_id | uuid / uuid | NO | uuid NOT NULL |
-| work_id | uuid / uuid | NO | uuid NOT NULL |
-| attempt_id | uuid / uuid | NO | uuid NOT NULL |
-| logical_request_id | uuid / uuid | NO | uuid NOT NULL |
-| physical_call_id | uuid / uuid | NO | uuid NOT NULL |
-| expected_input_hash | bytea / bytea | NO | bytea NOT NULL |
-| recipe_hash | bytea / bytea | NO | bytea NOT NULL |
-| recovery_active | boolean / bool | NO | boolean DEFAULT true NOT NULL |
-
-Constraints:
-- `prc_analysis_llm_requests_analysis_run_id_fkey`: `FOREIGN KEY (analysis_run_id) REFERENCES prc_analysis_runs(id)`
-- `prc_analysis_llm_requests_analysis_run_id_recipe_hash_fkey`: `FOREIGN KEY (analysis_run_id, recipe_hash) REFERENCES prc_analysis_runs(id, recipe_hash)`
-- `prc_analysis_llm_requests_attempt_id_fkey`: `FOREIGN KEY (attempt_id) REFERENCES prc_process_attempts(id)`
-- `prc_analysis_llm_requests_expected_input_hash_check`: `CHECK ((octet_length(expected_input_hash) = 32))`
-- `prc_analysis_llm_requests_logical_request_id_fkey`: `FOREIGN KEY (logical_request_id) REFERENCES llm_provider_requests(logical_request_id)`
-- `prc_analysis_llm_requests_physical_call_id_fkey`: `FOREIGN KEY (physical_call_id) REFERENCES llm_provider_calls(physical_call_id)`
-- `prc_analysis_llm_requests_physical_call_id_key`: `UNIQUE (physical_call_id)`
-- `prc_analysis_llm_requests_physical_call_id_logical_request_fkey`: `FOREIGN KEY (physical_call_id, logical_request_id) REFERENCES llm_provider_calls(physical_call_id, logical_request_id)`
-- `prc_analysis_llm_requests_pkey`: `PRIMARY KEY (id)`
-- `prc_analysis_llm_requests_recipe_hash_check`: `CHECK ((octet_length(recipe_hash) = 32))`
-- `prc_analysis_llm_requests_work_id_fkey`: `FOREIGN KEY (work_id) REFERENCES prc_process_work(id)`
-
-Indexes:
-- `prc_analysis_llm_active_work`: `CREATE UNIQUE INDEX prc_analysis_llm_active_work ON public.prc_analysis_llm_requests USING btree (work_id) WHERE recovery_active`
-- `prc_analysis_llm_requests_physical_call_id_key`: `CREATE UNIQUE INDEX prc_analysis_llm_requests_physical_call_id_key ON public.prc_analysis_llm_requests USING btree (physical_call_id)`
-- `prc_analysis_llm_requests_pkey`: `CREATE UNIQUE INDEX prc_analysis_llm_requests_pkey ON public.prc_analysis_llm_requests USING btree (id)`
-- `prc_analysis_llm_requests_run_call_idx`: `CREATE INDEX prc_analysis_llm_requests_run_call_idx ON public.prc_analysis_llm_requests USING btree (analysis_run_id, physical_call_id)`
-- `prc_analysis_llm_work_idx`: `CREATE INDEX prc_analysis_llm_work_idx ON public.prc_analysis_llm_requests USING btree (work_id, attempt_id)`
-
-#### llm_financial_actions
-
-Owner: P3.9; retention: financial.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | uuid / uuid | NO | uuid NOT NULL |
-| account_id | text / text | NO | text NOT NULL |
-| currency | text / text | NO | text NOT NULL |
-| physical_call_id | uuid / uuid | YES | uuid |
-| action | text / text | NO | text NOT NULL |
-| actor | text / text | NO | text NOT NULL |
-| reason | text / text | NO | text NOT NULL |
-| details | jsonb / jsonb | NO | jsonb NOT NULL |
-| details_schema_version | smallint / int2 | NO | smallint NOT NULL |
-| occurred_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
-
-Constraints:
-- `llm_financial_actions_account_id_currency_fkey`: `FOREIGN KEY (account_id, currency) REFERENCES llm_budget_accounts(account_id, currency)`
-- `llm_financial_actions_action_check`: `CHECK ((action = ANY (ARRAY['policy_change'::text, 'conservative_settlement'::text, 'abandon_unknown'::text, 'receipt_reconciliation'::text])))`
-- `llm_financial_actions_actor_check`: `CHECK ((length(actor) > 0))`
-- `llm_financial_actions_details_schema_version_check`: `CHECK ((details_schema_version = 1))`
-- `llm_financial_actions_physical_call_id_fkey`: `FOREIGN KEY (physical_call_id) REFERENCES llm_provider_calls(physical_call_id)`
-- `llm_financial_actions_pkey`: `PRIMARY KEY (id)`
-- `llm_financial_actions_reason_check`: `CHECK ((length(reason) > 0))`
-
-Indexes:
-- `llm_financial_actions_pkey`: `CREATE UNIQUE INDEX llm_financial_actions_pkey ON public.llm_financial_actions USING btree (id)`
-
-#### llm_file_assets
-
-Owner: Services/Llm/Cache; retention: financial.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | uuid / uuid | NO | uuid NOT NULL |
-| provider_id | bigint / int8 | NO | bigint NOT NULL |
-| account_id | text / text | NO | text NOT NULL |
-| api_surface | text / text | NO | text NOT NULL |
-| content_hash | bytea / bytea | NO | bytea NOT NULL |
-| mime | text / text | NO | text NOT NULL |
-| provider_uri | text / text | YES | text |
-| state | text / text | NO | text NOT NULL |
-| expires_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| creation_token | uuid / uuid | YES | uuid |
-| creation_lease_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-
-Constraints:
-- `llm_file_assets_check`: `CHECK (((creation_token IS NULL) = (creation_lease_until IS NULL)))`
-- `llm_file_assets_check1`: `CHECK (((state <> ALL (ARRAY['PROCESSING'::text, 'ACTIVE'::text])) OR ((provider_uri IS NOT NULL) AND (expires_at IS NOT NULL))))`
-- `llm_file_assets_content_hash_check`: `CHECK ((octet_length(content_hash) = 32))`
-- `llm_file_assets_creation_token_fkey`: `FOREIGN KEY (creation_token) REFERENCES llm_provider_calls(physical_call_id)`
-- `llm_file_assets_pkey`: `PRIMARY KEY (id)`
-- `llm_file_assets_provider_id_account_id_api_surface_content__key`: `UNIQUE (provider_id, account_id, api_surface, content_hash, mime)`
-- `llm_file_assets_provider_id_fkey`: `FOREIGN KEY (provider_id) REFERENCES llm_providers(id)`
-- `llm_file_assets_state_check`: `CHECK ((state = ANY (ARRAY['creating'::text, 'PROCESSING'::text, 'ACTIVE'::text, 'FAILED'::text, 'expired'::text])))`
-
-Indexes:
-- `llm_file_assets_pkey`: `CREATE UNIQUE INDEX llm_file_assets_pkey ON public.llm_file_assets USING btree (id)`
-- `llm_file_assets_provider_id_account_id_api_surface_content__key`: `CREATE UNIQUE INDEX llm_file_assets_provider_id_account_id_api_surface_content__key ON public.llm_file_assets USING btree (provider_id, account_id, api_surface, content_hash, mime)`
-
-#### llm_context_caches
-
-Owner: Services/Llm/Cache; retention: financial.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | uuid / uuid | NO | uuid NOT NULL |
-| provider_id | bigint / int8 | NO | bigint NOT NULL |
-| account_id | text / text | NO | text NOT NULL |
-| api_surface | text / text | NO | text NOT NULL |
-| model | text / text | NO | text NOT NULL |
-| system_hash | bytea / bytea | NO | bytea NOT NULL |
-| schema_tool_policy_hash | bytea / bytea | NO | bytea NOT NULL |
-| representation_hash | bytea / bytea | NO | bytea NOT NULL |
-| content_ordering_hash | bytea / bytea | NO | bytea NOT NULL |
-| provider_name | text / text | YES | text |
-| expires_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| creation_state | text / text | NO | text NOT NULL |
-| creation_token | uuid / uuid | YES | uuid |
-| creation_lease_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| cost | numeric / numeric | NO | numeric(24,8) NOT NULL |
-
-Constraints:
-- `llm_context_caches_check`: `CHECK (((creation_token IS NULL) = (creation_lease_until IS NULL)))`
-- `llm_context_caches_check1`: `CHECK (((creation_state <> 'active'::text) OR ((provider_name IS NOT NULL) AND (expires_at IS NOT NULL))))`
-- `llm_context_caches_content_ordering_hash_check`: `CHECK ((octet_length(content_ordering_hash) = 32))`
-- `llm_context_caches_cost_check`: `CHECK ((cost >= (0)::numeric))`
-- `llm_context_caches_creation_state_check`: `CHECK ((creation_state = ANY (ARRAY['creating'::text, 'active'::text, 'expired'::text])))`
-- `llm_context_caches_creation_token_fkey`: `FOREIGN KEY (creation_token) REFERENCES llm_provider_calls(physical_call_id)`
-- `llm_context_caches_pkey`: `PRIMARY KEY (id)`
-- `llm_context_caches_provider_id_account_id_api_surface_model_key`: `UNIQUE (provider_id, account_id, api_surface, model, system_hash, schema_tool_policy_hash, representation_hash, content_ordering_hash)`
-- `llm_context_caches_provider_id_fkey`: `FOREIGN KEY (provider_id) REFERENCES llm_providers(id)`
-- `llm_context_caches_representation_hash_check`: `CHECK ((octet_length(representation_hash) = 32))`
-- `llm_context_caches_schema_tool_policy_hash_check`: `CHECK ((octet_length(schema_tool_policy_hash) = 32))`
-- `llm_context_caches_system_hash_check`: `CHECK ((octet_length(system_hash) = 32))`
-
-Indexes:
-- `llm_context_caches_pkey`: `CREATE UNIQUE INDEX llm_context_caches_pkey ON public.llm_context_caches USING btree (id)`
-- `llm_context_caches_provider_id_account_id_api_surface_model_key`: `CREATE UNIQUE INDEX llm_context_caches_provider_id_account_id_api_surface_model_key ON public.llm_context_caches USING btree (provider_id, account_id, api_surface, model, system_hash, schema_tool_policy_hash, representation_hash, content_ordering_hash)`
-
-#### prc_proxyma_target_links
-
-Owner: Services/Procurement/Proxyma; retention: authority.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| source_target_id | uuid / uuid | NO | uuid NOT NULL |
-| tenant_key | text / text | NO | text NOT NULL |
-| target_id | uuid / uuid | NO | uuid NOT NULL |
-| source_revision | bigint / int8 | NO | bigint NOT NULL |
-
-Constraints:
-- `prc_proxyma_target_links_pkey`: `PRIMARY KEY (source_target_id)`
-- `prc_proxyma_target_links_source_target_id_foreign`: `FOREIGN KEY (source_target_id) REFERENCES prc_source_targets(id)`
-- `prc_proxyma_target_links_valid`: `CHECK ((source_revision > 0))`
-- `prc_pxm_target_identity`: `UNIQUE (tenant_key, target_id)`
-
-Indexes:
-- `prc_proxyma_target_links_pkey`: `CREATE UNIQUE INDEX prc_proxyma_target_links_pkey ON public.prc_proxyma_target_links USING btree (source_target_id)`
-- `prc_pxm_target_identity`: `CREATE UNIQUE INDEX prc_pxm_target_identity ON public.prc_proxyma_target_links USING btree (tenant_key, target_id)`
-
-#### prc_proxyma_profile_links
-
-Owner: Services/Procurement/Proxyma; retention: authority.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| source_profile_id | uuid / uuid | NO | uuid NOT NULL |
-| source_version | bigint / int8 | NO | bigint NOT NULL |
-| tenant_key | text / text | NO | text NOT NULL |
-| profile_id | uuid / uuid | NO | uuid NOT NULL |
-| profile_version | bigint / int8 | NO | bigint NOT NULL |
-
-Constraints:
-- `prc_proxyma_profile_links_pkey`: `PRIMARY KEY (source_profile_id, source_version)`
-- `prc_proxyma_profile_links_source_profile_id_foreign`: `FOREIGN KEY (source_profile_id) REFERENCES prc_network_route_profiles(id)`
-- `prc_proxyma_profile_links_valid`: `CHECK (((source_version > 0) AND (profile_version > 0)))`
-- `prc_pxm_profile_identity`: `UNIQUE (tenant_key, profile_id, profile_version)`
-
-Indexes:
-- `prc_proxyma_profile_links_pkey`: `CREATE UNIQUE INDEX prc_proxyma_profile_links_pkey ON public.prc_proxyma_profile_links USING btree (source_profile_id, source_version)`
-- `prc_pxm_profile_identity`: `CREATE UNIQUE INDEX prc_pxm_profile_identity ON public.prc_proxyma_profile_links USING btree (tenant_key, profile_id, profile_version)`
-
-#### prc_proxyma_binding_links
-
-Owner: Services/Procurement/Proxyma; retention: authority.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| crawler_id | bigint / int8 | NO | bigint NOT NULL |
-| slot | text / text | NO | text NOT NULL |
-| tenant_key | text / text | NO | text NOT NULL |
-| binding_id | uuid / uuid | NO | uuid NOT NULL |
-
-Constraints:
-- `prc_proxyma_binding_links_crawler_id_foreign`: `FOREIGN KEY (crawler_id) REFERENCES prc_crawlers(id)`
-- `prc_proxyma_binding_links_pkey`: `PRIMARY KEY (crawler_id, slot)`
-- `prc_proxyma_binding_links_valid`: `CHECK ((slot = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'reference'::text, 'llm'::text])))`
-- `prc_pxm_binding_identity`: `UNIQUE (tenant_key, binding_id)`
-
-Indexes:
-- `prc_proxyma_binding_links_pkey`: `CREATE UNIQUE INDEX prc_proxyma_binding_links_pkey ON public.prc_proxyma_binding_links USING btree (crawler_id, slot)`
-- `prc_pxm_binding_identity`: `CREATE UNIQUE INDEX prc_pxm_binding_identity ON public.prc_proxyma_binding_links USING btree (tenant_key, binding_id)`
-
-#### prc_proxyma_owner_links
-
-Owner: Services/Procurement/Proxyma; retention: authority.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| tenant_key | text / text | NO | text NOT NULL |
-| owner_type | text / text | NO | text NOT NULL |
-| owner_id | uuid / uuid | NO | uuid NOT NULL |
-| generation | bigint / int8 | NO | bigint NOT NULL |
-| operation_id | uuid / uuid | NO | uuid NOT NULL |
-| parent_attempt_id | uuid / uuid | YES | uuid |
-
-Constraints:
-- `prc_proxyma_owner_links_parent_attempt_id_foreign`: `FOREIGN KEY (parent_attempt_id) REFERENCES prc_process_attempts(id)`
-- `prc_proxyma_owner_links_pkey`: `PRIMARY KEY (tenant_key, owner_type, owner_id, generation)`
-- `prc_proxyma_owner_links_valid`: `CHECK (((generation > 0) AND (owner_type = ANY (ARRAY['process_attempt'::text, 'outbound_operation'::text]))))`
-- `prc_pxm_owner_identity`: `UNIQUE (tenant_key, operation_id)`
-
-Indexes:
-- `prc_proxyma_owner_links_pkey`: `CREATE UNIQUE INDEX prc_proxyma_owner_links_pkey ON public.prc_proxyma_owner_links USING btree (tenant_key, owner_type, owner_id, generation)`
-- `prc_pxm_owner_identity`: `CREATE UNIQUE INDEX prc_pxm_owner_identity ON public.prc_proxyma_owner_links USING btree (tenant_key, operation_id)`
-
-#### prc_network_cutover_journals
-
-Owner: Services/Procurement/Proxyma; retention: journal.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | uuid / uuid | NO | uuid NOT NULL |
-| source_revision | text / text | NO | text NOT NULL |
-| target_revision | text / text | NO | text NOT NULL |
-| phase | text / text | NO | text NOT NULL |
-| generation | bigint / int8 | NO | bigint NOT NULL |
-| first_authorized_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| checkpoint | jsonb / jsonb | NO | jsonb DEFAULT '{}'::jsonb NOT NULL |
-
-Constraints:
-- `prc_network_cutover_journals_pkey`: `PRIMARY KEY (id)`
-- `prc_network_cutover_journals_valid`: `CHECK (((generation > 0) AND (phase = ANY (ARRAY['prepared'::text, 'draining'::text, 'verified'::text, 'switched'::text, 'accepted'::text]))))`
-- `prc_pxm_journal_identity`: `UNIQUE (source_revision, target_revision, generation)`
-
-Indexes:
-- `prc_network_cutover_journals_pkey`: `CREATE UNIQUE INDEX prc_network_cutover_journals_pkey ON public.prc_network_cutover_journals USING btree (id)`
-- `prc_pxm_journal_identity`: `CREATE UNIQUE INDEX prc_pxm_journal_identity ON public.prc_network_cutover_journals USING btree (source_revision, target_revision, generation)`
-
-#### prc_network_authorities
-
-Owner: Services/Procurement/Proxyma; retention: authority.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | text / text | NO | text NOT NULL |
-| authority | text / text | NO | text DEFAULT 'legacy'::text NOT NULL |
-| generation | bigint / int8 | NO | bigint NOT NULL |
-| cutover_id | uuid / uuid | YES | uuid |
-| paused | boolean / bool | NO | boolean DEFAULT false NOT NULL |
-| legacy_frozen | boolean / bool | NO | boolean DEFAULT false NOT NULL |
-
-Constraints:
-- `prc_network_authorities_cutover_id_foreign`: `FOREIGN KEY (cutover_id) REFERENCES prc_network_cutover_journals(id)`
-- `prc_network_authorities_pkey`: `PRIMARY KEY (id)`
-- `prc_network_authorities_valid`: `CHECK (((id = 'network'::text) AND (generation > 0) AND (authority = ANY (ARRAY['legacy'::text, 'proxyma'::text])) AND ((authority = 'legacy'::text) OR (cutover_id IS NOT NULL))))`
-
-Indexes:
-- `prc_network_authorities_pkey`: `CREATE UNIQUE INDEX prc_network_authorities_pkey ON public.prc_network_authorities USING btree (id)`
-
-#### prc_proxyma_endpoint_links
-
-Owner: Services/Procurement/Proxyma/Migration; retention: authority.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| proxy_id | bigint / int8 | NO | bigint NOT NULL |
-| tenant_key | text / text | NO | text NOT NULL |
-| endpoint_id | uuid / uuid | NO | uuid NOT NULL |
-
-Constraints:
-- `prc_proxyma_endpoint_links_pkey`: `PRIMARY KEY (proxy_id)`
-- `prc_proxyma_endpoint_links_proxy_id_foreign`: `FOREIGN KEY (proxy_id) REFERENCES prc_proxies(id)`
-- `prc_proxyma_endpoint_links_tenant_key_endpoint_id_unique`: `UNIQUE (tenant_key, endpoint_id)`
-
-Indexes:
-- `prc_proxyma_endpoint_links_pkey`: `CREATE UNIQUE INDEX prc_proxyma_endpoint_links_pkey ON public.prc_proxyma_endpoint_links USING btree (proxy_id)`
-- `prc_proxyma_endpoint_links_tenant_key_endpoint_id_unique`: `CREATE UNIQUE INDEX prc_proxyma_endpoint_links_tenant_key_endpoint_id_unique ON public.prc_proxyma_endpoint_links USING btree (tenant_key, endpoint_id)`
-
-#### prc_proxyma_transfer_records
-
-Owner: Services/Procurement/Proxyma/Migration; retention: authority.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| target_table | text / text | NO | text NOT NULL |
-| target_key | text / text | NO | text NOT NULL |
-| cutover_id | uuid / uuid | NO | uuid NOT NULL |
-| identity | jsonb / jsonb | NO | jsonb NOT NULL |
-| imported | jsonb / jsonb | NO | jsonb NOT NULL |
-| checksum | character / bpchar | NO | character(64) NOT NULL |
-
-Constraints:
-- `prc_proxyma_transfer_records_check`: `CHECK (((checksum ~ '^[0-9a-f]{64}$'::text) AND (jsonb_typeof(identity) = 'object'::text) AND (jsonb_typeof(imported) = 'object'::text)))`
-- `prc_proxyma_transfer_records_cutover_id_foreign`: `FOREIGN KEY (cutover_id) REFERENCES prc_network_cutover_journals(id)`
-- `prc_proxyma_transfer_records_pkey`: `PRIMARY KEY (target_table, target_key)`
-
-Indexes:
-- `prc_proxyma_transfer_records_pkey`: `CREATE UNIQUE INDEX prc_proxyma_transfer_records_pkey ON public.prc_proxyma_transfer_records USING btree (target_table, target_key)`
-
-#### prc_proxyma_state_archive
-
-Owner: Services/Procurement/Proxyma/Migration; retention: authority.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| source_table | text / text | NO | text NOT NULL |
-| source_key | text / text | NO | text NOT NULL |
-| payload | jsonb / jsonb | NO | jsonb NOT NULL |
-| mapped_state | text / text | YES | text |
-| authorized_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-
-Constraints:
-- `prc_proxyma_state_archive_check`: `CHECK (((mapped_state IS NULL) OR ((mapped_state = ANY (ARRAY['cancelled_before_send'::text, 'expired_before_send'::text])) AND (authorized_at IS NULL)) OR ((mapped_state = ANY (ARRAY['completed'::text, 'unknown_after_authorization'::text])) AND (authorized_at IS NOT NULL))))`
-- `prc_proxyma_state_archive_pkey`: `PRIMARY KEY (source_table, source_key)`
-
-Indexes:
-- `prc_proxyma_state_archive_pkey`: `CREATE UNIQUE INDEX prc_proxyma_state_archive_pkey ON public.prc_proxyma_state_archive USING btree (source_table, source_key)`
 
 #### pxm_attempts
 
@@ -7329,10 +7296,156 @@ Constraints:
 Indexes:
 - `pxm_temporary_artifacts_pkey`: `CREATE UNIQUE INDEX pxm_temporary_artifacts_pkey ON public.pxm_temporary_artifacts USING btree (id)`
 
+#### ref_kbk
+
+Owner: Reference; retention: business.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | bigint / int8 | NO | bigint NOT NULL |
+| code | character varying / varchar | NO | character varying(255) NOT NULL |
+| parent_code | character varying / varchar | YES | character varying(255) |
+| level | integer / int4 | NO | integer NOT NULL |
+| name | character varying / varchar | NO | character varying(255) NOT NULL |
+| valid_from | date / date | NO | date NOT NULL |
+| valid_to | date / date | YES | date |
+| attributes | jsonb / jsonb | YES | jsonb |
+| created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
+| updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
+
+Constraints:
+- `ref_kbk_code_unique`: `UNIQUE (code)`
+- `ref_kbk_pkey`: `PRIMARY KEY (id)`
+
+Indexes:
+- `ref_kbk_code_unique`: `CREATE UNIQUE INDEX ref_kbk_code_unique ON public.ref_kbk USING btree (code)`
+- `ref_kbk_parent_code_index`: `CREATE INDEX ref_kbk_parent_code_index ON public.ref_kbk USING btree (parent_code)`
+- `ref_kbk_pkey`: `CREATE UNIQUE INDEX ref_kbk_pkey ON public.ref_kbk USING btree (id)`
+
+#### ref_ktru
+
+Owner: Reference; retention: business.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | bigint / int8 | NO | bigint NOT NULL |
+| code | character varying / varchar | NO | character varying(255) NOT NULL |
+| parent_code | character varying / varchar | YES | character varying(255) |
+| level | integer / int4 | NO | integer NOT NULL |
+| name | character varying / varchar | NO | character varying(255) NOT NULL |
+| okpd2_code | character varying / varchar | YES | character varying(255) |
+| valid_from | date / date | NO | date NOT NULL |
+| valid_to | date / date | YES | date |
+| attributes | jsonb / jsonb | YES | jsonb |
+| created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
+| updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
+
+Constraints:
+- `ref_ktru_code_unique`: `UNIQUE (code)`
+- `ref_ktru_pkey`: `PRIMARY KEY (id)`
+
+Indexes:
+- `ref_ktru_code_unique`: `CREATE UNIQUE INDEX ref_ktru_code_unique ON public.ref_ktru USING btree (code)`
+- `ref_ktru_parent_code_index`: `CREATE INDEX ref_ktru_parent_code_index ON public.ref_ktru USING btree (parent_code)`
+- `ref_ktru_pkey`: `CREATE UNIQUE INDEX ref_ktru_pkey ON public.ref_ktru USING btree (id)`
+
+#### ref_okpd2
+
+Owner: Reference; retention: business.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | bigint / int8 | NO | bigint NOT NULL |
+| code | character varying / varchar | NO | character varying(255) NOT NULL |
+| parent_code | character varying / varchar | YES | character varying(255) |
+| level | integer / int4 | NO | integer NOT NULL |
+| name | character varying / varchar | NO | character varying(255) NOT NULL |
+| valid_from | date / date | NO | date NOT NULL |
+| valid_to | date / date | YES | date |
+| attributes | jsonb / jsonb | YES | jsonb |
+| created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
+| updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
+
+Constraints:
+- `ref_okpd2_code_unique`: `UNIQUE (code)`
+- `ref_okpd2_pkey`: `PRIMARY KEY (id)`
+
+Indexes:
+- `ref_okpd2_code_unique`: `CREATE UNIQUE INDEX ref_okpd2_code_unique ON public.ref_okpd2 USING btree (code)`
+- `ref_okpd2_parent_code_index`: `CREATE INDEX ref_okpd2_parent_code_index ON public.ref_okpd2 USING btree (parent_code)`
+- `ref_okpd2_pkey`: `CREATE UNIQUE INDEX ref_okpd2_pkey ON public.ref_okpd2 USING btree (id)`
+
+#### ref_okved2
+
+Owner: Reference; retention: business.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | bigint / int8 | NO | bigint NOT NULL |
+| code | character varying / varchar | NO | character varying(255) NOT NULL |
+| parent_code | character varying / varchar | YES | character varying(255) |
+| level | integer / int4 | NO | integer NOT NULL |
+| name | character varying / varchar | NO | character varying(255) NOT NULL |
+| valid_from | date / date | NO | date NOT NULL |
+| valid_to | date / date | YES | date |
+| attributes | jsonb / jsonb | YES | jsonb |
+| created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
+| updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
+
+Constraints:
+- `ref_okved2_code_unique`: `UNIQUE (code)`
+- `ref_okved2_pkey`: `PRIMARY KEY (id)`
+
+Indexes:
+- `ref_okved2_code_unique`: `CREATE UNIQUE INDEX ref_okved2_code_unique ON public.ref_okved2 USING btree (code)`
+- `ref_okved2_parent_code_index`: `CREATE INDEX ref_okved2_parent_code_index ON public.ref_okved2 USING btree (parent_code)`
+- `ref_okved2_pkey`: `CREATE UNIQUE INDEX ref_okved2_pkey ON public.ref_okved2 USING btree (id)`
+
+#### sessions
+
+Owner: Framework/vendor; retention: runtime.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | character varying / varchar | NO | character varying(255) NOT NULL |
+| user_id | bigint / int8 | YES | bigint |
+| ip_address | character varying / varchar | YES | character varying(45) |
+| user_agent | text / text | YES | text |
+| payload | text / text | NO | text NOT NULL |
+| last_activity | integer / int4 | NO | integer NOT NULL |
+
+Constraints:
+- `sessions_pkey`: `PRIMARY KEY (id)`
+
+Indexes:
+- `sessions_last_activity_index`: `CREATE INDEX sessions_last_activity_index ON public.sessions USING btree (last_activity)`
+- `sessions_pkey`: `CREATE UNIQUE INDEX sessions_pkey ON public.sessions USING btree (id)`
+- `sessions_user_id_index`: `CREATE INDEX sessions_user_id_index ON public.sessions USING btree (user_id)`
+
+#### users
+
+Owner: Framework/vendor; retention: business.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | bigint / int8 | NO | bigint NOT NULL |
+| name | character varying / varchar | NO | character varying(255) NOT NULL |
+| email | character varying / varchar | NO | character varying(255) NOT NULL |
+| email_verified_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
+| password | character varying / varchar | NO | character varying(255) NOT NULL |
+| remember_token | character varying / varchar | YES | character varying(100) |
+| created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
+| updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
+
+Constraints:
+- `users_email_unique`: `UNIQUE (email)`
+- `users_pkey`: `PRIMARY KEY (id)`
+
+Indexes:
+- `users_email_unique`: `CREATE UNIQUE INDEX users_email_unique ON public.users USING btree (email)`
+- `users_pkey`: `CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)`
+
 <!-- schema-inventory:end -->
-
-
-
 
 ## Передача P1.4 → P1.6–P1.12
 

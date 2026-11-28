@@ -7,7 +7,14 @@ namespace App\Services\Platforms\Eis\Card;
 use App\Dto\Organization\OrganizationIdentifierData;
 use App\Dto\Procurement\Details\OrganizationData;
 use App\Dto\Procurement\Details\PartyData;
+use App\Dto\Procurement\Parsing\Extraction\DriftSignal;
+use App\Dto\Procurement\Parsing\Primitives\SelectorChain;
+use App\Dto\Procurement\Parsing\Rules\DetailRuleSetDto;
 use App\Enums\Organization\ProcurementPartyRole;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Services\Platforms\Eis\EisDefaultParsingRules;
+use App\Services\Procurement\Platform\Contracts\DomExtractor;
+use App\Services\Procurement\Platform\Contracts\DriftCollector;
 use Symfony\Component\DomCrawler\Crawler;
 
 /**
@@ -21,17 +28,14 @@ final readonly class PartiesParser
     /**
      * @var array<string, ProcurementPartyRole>
      */
-    private const array ROLE_MAP = [
-        'Заказчик' => ProcurementPartyRole::Customer,
-        'Организация, осуществляющая закупки в соответствии с частями 4, 4.3 или 4.4 статьи 15 Федерального закона № 44-ФЗ' => ProcurementPartyRole::Customer,
-        'Специализированная некоммерческая организация, которая осуществляет деятельность, направленную на обеспечение проведения капитального ремонта общего имущества в многоквартирных домах в соответствии с Постановлением № 615 (региональный оператор)' => ProcurementPartyRole::Customer,
-        'Организация, осуществляющая полномочия заказчика на осуществление закупок на основании соглашения в соответствии с частью 6 статьи 15 Федерального закона № 44-ФЗ' => ProcurementPartyRole::AuthorizedInstitution,
-        'Размещающая организация' => ProcurementPartyRole::Placer,
-        'Уполномоченный орган' => ProcurementPartyRole::AuthorizedBody,
-        'Уполномоченное учреждение' => ProcurementPartyRole::AuthorizedInstitution,
-        'Специализированная организация' => ProcurementPartyRole::SpecializedOrganization,
-        'Оператор электронной площадки' => ProcurementPartyRole::PlatformOperator,
-    ];
+    private const array ROLE_MAP = EisDefaultParsingRules::PARTY_ROLE_MAP;
+
+    /** @phpstan-ignore constructor.unusedParameter */
+    public function __construct(
+        private ?DetailRuleSetDto $rules = null,
+        ?DomExtractor $dom = null,
+        private ?DriftCollector $drift = null,
+    ) {}
 
     /** @return list<PartyData> */
     public function parse(string $html, bool $strict = false): array
@@ -39,6 +43,7 @@ final readonly class PartiesParser
         try {
             $snapshot = $this->snapshot($html);
             if (! $snapshot['complete']) {
+                $this->drift?->record(new DriftSignal('parties_incomplete', StageCode::Detail, 'section.organizations-block'));
                 CardDomHelper::logWarning('Вкладка common-info не содержит подтверждённый полный набор сторон.');
             }
 
@@ -78,10 +83,11 @@ final readonly class PartiesParser
     /** @return array{parties: list<PartyData>, complete: bool} */
     private function snapshot(string $html): array
     {
+        $rules = $this->rules ?? EisDefaultParsingRules::detail();
         $crawler = new Crawler($html);
-        $table = $crawler->filter('section.organizations-block table.parties-table');
+        $table = $this->firstMatching($crawler, $rules->parties?->customerSectionSelectors, 'section.organizations-block table.parties-table');
 
-        if ($table->count() > 0) {
+        if ($table->count() > 0 && ($table->nodeName() === 'table' || $table->filter('tbody tr')->count() > 0)) {
             $rows = $table->filter('tbody tr');
             $parties = array_values(array_filter($rows->each(fn (Crawler $row): ?PartyData => $this->parseRow($row))));
 
@@ -89,6 +95,22 @@ final readonly class PartiesParser
         }
 
         return $this->parseReal($crawler);
+    }
+
+    private function firstMatching(Crawler $crawler, ?SelectorChain $chain, string $defaultSelector): Crawler
+    {
+        if ($chain !== null) {
+            foreach ($chain->selectors as $selector) {
+                $matched = $crawler->filter($selector->selector);
+                if ($matched->count() > 0) {
+                    return $matched;
+                }
+            }
+
+            return new Crawler;
+        }
+
+        return $crawler->filter($defaultSelector);
     }
 
     /** @return array{parties: list<PartyData>, complete: bool} */

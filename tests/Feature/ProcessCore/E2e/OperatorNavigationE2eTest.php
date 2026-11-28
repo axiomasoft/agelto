@@ -25,6 +25,7 @@ use App\Filament\Resources\Procurement\Crawler\Crawlers\CrawlerResource;
 use App\Filament\Resources\Procurement\Estimates\EstimateResource;
 use App\Filament\Resources\Procurement\Health\PlatformChecks\PlatformCheckResource;
 use App\Filament\Resources\Procurement\OperationLogs\OperationLogResource;
+use App\Filament\Resources\Procurement\Platform\ParsingRuleSets\ParsingRuleSetResource;
 use App\Filament\Resources\Procurement\Platform\Platforms\PlatformResource;
 use App\Filament\Resources\Procurement\Platform\Registries\RegistryResource;
 use App\Filament\Resources\Procurement\Platform\StatusMappings\StatusMappingResource;
@@ -142,6 +143,7 @@ test('навигация и все страницы админки рендер�
         RegistryResource::class => 'Площадки',
         StatusMappingResource::class => 'Площадки',
         PlatformCheckResource::class => 'Площадки',
+        ParsingRuleSetResource::class => 'Площадки',
         CrawlerResource::class => 'Сбор данных',
         FixtureResource::class => 'Качество анализа',
         DatasetExampleResource::class => 'Качество анализа',
