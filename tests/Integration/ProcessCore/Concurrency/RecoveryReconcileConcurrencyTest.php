@@ -27,13 +27,25 @@ use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;
 use Tests\Support\ProcessCore\FixtureProviderRecoveryResolver;
 use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\StoredDocumentFixtures;
 
 pest()->group('daemon-reconciliation', 'delivery-and-daemon-lifecycle', 'claim-recovery-and-invariants');
 
-// Отдельные PHP процессы и PostgreSQL connections коммитят rows; Redis — изолированный rig
-// (PROCESS_CORE_TEST=1, core-redis). Ledger очищается целиком до и после теста.
-beforeEach(fn () => ExecutionFixtures::truncateLedger());
-afterEach(fn () => ExecutionFixtures::truncateLedger());
+// Отдельные PHP процессы и PostgreSQL connections коммитят rows; Redis — изолированный rig.
+// Реальный tick обрабатывает также storage/network/package, поэтому их остатки тоже изолируются.
+function cleanReconcileFixtures(): void
+{
+    StoredDocumentFixtures::reset(); // Проверяет PROCESS_CORE_TEST и целевую тестовую БД.
+    $tables = DB::select("SELECT tablename FROM pg_tables WHERE schemaname = current_schema()
+        AND tablename LIKE 'pxm\\_%' ESCAPE '\\' ORDER BY tablename");
+    if ($tables !== []) {
+        $names = array_map(static fn ($row): string => DB::connection()->getQueryGrammar()->wrap($row->tablename), $tables);
+        DB::statement('TRUNCATE '.implode(', ', $names).' CASCADE');
+    }
+}
+
+beforeEach(fn () => cleanReconcileFixtures());
+afterEach(fn () => cleanReconcileFixtures());
 
 /** Тело worker: ReconcileDaemon с категориями настоящего RecoveryReconciler, один tick. */
 function reconcileWorker(): string
@@ -65,6 +77,8 @@ test('два reconcile daemon после потери Redis: потерянна�
     app(StageRegistry::class)->bindHandler(StageCode::Listing, $handler);
     $route = app(StageQueueMap::class)->forStage(StageCode::Listing);
     $queueSize = static fn (): int => (int) Queue::connection($route->connection)->size($route->queue);
+    Redis::connection((string) config('queue.connections.'.$route->connection.'.connection', 'default'))->flushall();
+    expect($queueSize())->toBe(0);
     $lost = ExecutionFixtures::listingWork();
     $crashed = ExecutionFixtures::listingWork();
     expect(app(WorkFeeder::class)->tick('acquisition'))->toBe(2);
