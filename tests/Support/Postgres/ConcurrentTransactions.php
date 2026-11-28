@@ -128,6 +128,8 @@ if ({$tokenExport} !== false) {
     \Illuminate\Support\Facades\DB::purge('pgsql');
     \Tests\Support\TestEnvironmentGuard::assertParallelTestDatabase(\$app, {$databaseExport}, {$tokenExport});
 }
+// Services resolved during bootstrap must not retain the purged connection.
+\$app->forgetScopedInstances();
 if ({$waitForBarrierExport}) {
     fwrite(STDOUT, "ready\\n");
     fgets(STDIN);

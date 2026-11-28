@@ -145,7 +145,7 @@ final class ProxymaProviderFixtures
         $source = DB::table('prc_source_targets')->where('provider_key', 'fixture-provider')->sole();
         $origin = CanonicalOrigin::fromUrl($source->canonical_origin);
         $dns = new DnsResolver(app(ConnectionScope::class), static fn (): array => ['127.0.0.1']);
-        app()->instance(ProxyResolver::class, new ProxyResolver($dns));
+        app()->instance(ProxyResolver::class, new ProxyResolver($dns, ['fixture.test' => ['127.0.0.1']]));
         app()->instance(SecretResolver::class, new class implements SecretResolver
         {
             public function resolve(CredentialRef $credential, TenantKey $tenant): ?ResolvedSecret

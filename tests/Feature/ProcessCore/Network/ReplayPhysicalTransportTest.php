@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Services\Procurement\Proxyma\Transport\AgeltoPhysicalHttpTransport;
 use Proxyma\Domain\Catalog\ProxyProtocol;
 use Proxyma\Domain\Execution\RequestTimeoutPolicy;
+use Proxyma\Domain\Execution\ResponseProfile;
 use Proxyma\Domain\Execution\TransportFailure;
 use Proxyma\Infrastructure\Http\PhysicalHttpTransport;
 use Proxyma\Infrastructure\Http\TransportDoctor;
@@ -127,6 +129,36 @@ test('различает timeout, truncation, connect и byte limit без по�
     $result = $transport->sendOnce($this->physicalCapability($prepared));
     expect($result->failure)->toBe($failure)->and($this->socket->events('origin'))->toHaveCount(1);
 })->with([['/stall', TransportFailure::Timeout], ['/truncated', TransportFailure::Truncated], ['/drop', TransportFailure::Connect], ['/large', TransportFailure::ByteLimit]]);
+
+test('ограничивает распакованный ответ и освобождает временный файл при отказе', function (): void {
+    $profile = new ResponseProfile('raw', maxWireBytes: 65536, maxEntityBytes: 8192, maxTextBytes: 8192);
+    $prepared = $this->physicalPrepared('/gzip-large', responseProfile: $profile);
+    $capability = $this->physicalCapability($prepared);
+    $transport = new AgeltoPhysicalHttpTransport($this->transactions->scope, $this->sealer);
+    $before = $this->openResponseSinks();
+
+    $result = $transport->sendOnce($capability);
+
+    expect($result->failure)->toBe(TransportFailure::ByteLimit)
+        ->and($result->wireBytes)->toBeLessThan(8192)
+        ->and($result->decodedBytes)->toBe(8193)
+        ->and($this->socket->events('origin'))->toHaveCount(1)
+        ->and($this->openResponseSinks())->toBe($before);
+});
+
+test('ограничивает wire bytes и освобождает временный файл при отказе', function (): void {
+    $profile = new ResponseProfile('raw', maxWireBytes: 64, maxEntityBytes: 8192, maxTextBytes: 8192);
+    $capability = $this->physicalCapability($this->physicalPrepared('/large', responseProfile: $profile));
+    $transport = new AgeltoPhysicalHttpTransport($this->transactions->scope, $this->sealer);
+    $before = $this->openResponseSinks();
+
+    $result = $transport->sendOnce($capability);
+
+    expect($result->failure)->toBe(TransportFailure::ByteLimit)
+        ->and($result->wireBytes)->toBeGreaterThan(64)
+        ->and($this->socket->events('origin'))->toHaveCount(1)
+        ->and($this->openResponseSinks())->toBe($before);
+});
 
 test('doctor запрещает HTTPS proxy без feature и SOCKS5h до enable', function (): void {
     expect(fn () => TransportDoctor::assertProtocol(ProxyProtocol::Https, 0))->toThrow(LogicException::class, 'lacks HTTPS-proxy')

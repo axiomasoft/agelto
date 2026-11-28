@@ -20,6 +20,12 @@ final readonly class OutboundPolicy
 
     private const array SCHEDULING_KEYS = ['max_inline_wait_seconds', 'max_pending_demands_per_origin', 'ticket_ttl_seconds', 'ticket_renew_seconds', 'permit_cleanup_reserve_seconds', 'status_capacity_percent'];
 
+    private const array HEALTH_KEYS = ['global_consecutive', 'global_base_seconds', 'global_cap_seconds',
+        'route_target_consecutive', 'route_target_min_sample', 'route_target_failure_percent',
+        'route_target_window_seconds', 'route_target_base_seconds', 'route_target_cap_seconds',
+        'stable_decay_seconds', 'corroboration_window_seconds', 'origin_cooldown_seconds',
+        'probe_reserve_seconds', 'waf_cooldown_seconds'];
+
     public int $policyVersion;
 
     public OriginBudgetPolicy $originBudget;
@@ -71,6 +77,7 @@ final readonly class OutboundPolicy
             throw new \InvalidArgumentException('Invalid outbound policy: outbound');
         }
         new AdapterHealthPolicy($config);
+        self::validateHistoricalHealth($root['health']);
         $routing = $root['routing'];
         if (! is_array($routing) || array_keys($routing) !== ['default_profile', 'provider_profile']) {
             throw new \InvalidArgumentException('Invalid outbound.routing');
@@ -219,6 +226,25 @@ final readonly class OutboundPolicy
         }
 
         return $value;
+    }
+
+    private static function validateHistoricalHealth(mixed $health): void
+    {
+        if (! is_array($health) || array_diff(self::HEALTH_KEYS, array_keys($health)) !== []
+            || array_diff(array_keys($health), self::HEALTH_KEYS) !== []) {
+            throw new \InvalidArgumentException('Invalid outbound policy: outbound.health');
+        }
+        foreach (self::HEALTH_KEYS as $key) {
+            self::positive($health[$key], 'outbound.health.'.$key);
+        }
+        if ($health['route_target_failure_percent'] > 100) {
+            throw new \InvalidArgumentException('Invalid outbound policy: outbound.health.route_target_failure_percent');
+        }
+        foreach (['global', 'route_target'] as $scope) {
+            if ($health[$scope.'_cap_seconds'] < $health[$scope.'_base_seconds']) {
+                throw new \InvalidArgumentException('Invalid outbound policy: outbound.health.'.$scope.'_cap_seconds');
+            }
+        }
     }
 
     private static function label(mixed $value, string $path): string

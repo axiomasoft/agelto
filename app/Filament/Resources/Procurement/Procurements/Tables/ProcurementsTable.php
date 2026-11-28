@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Procurements\Tables;
 
+use App\Filament\Resources\Procurement\Procurements\ProcurementResource;
 use App\Models\Procurement\Procurement;
-use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -52,13 +52,15 @@ class ProcurementsTable
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('view_link')
+                    ->label('')
+                    ->state('Просмотреть')
+                    ->url(fn (Procurement $record): string => ProcurementResource::getUrl('view', ['record' => $record])),
             ])
             ->filters([
                 //
             ])
-            // Read-only: только просмотр.
-            ->recordActions([
-                ViewAction::make(),
-            ]);
+            // The resource query already filters viewable rows; the destination rechecks access.
+            ->recordUrl(fn (Procurement $record): string => ProcurementResource::getUrl('view', ['record' => $record]));
     }
 }

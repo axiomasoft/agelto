@@ -69,6 +69,8 @@ return [
         'tls_bundles' => ['zakupki.gov.ru' => '/etc/ssl/certs/russian-trusted-ca.pem'],
     ],
 
+    // Historical health policy used when transferring legacy projection windows to Proxyma.
+    // Active network health thresholds are owned by proxyma.health.
     'health' => [
         'global_consecutive' => 5, 'global_base_seconds' => 1800, 'global_cap_seconds' => 21600,
         'route_target_consecutive' => 5, 'route_target_min_sample' => 10, 'route_target_failure_percent' => 60,

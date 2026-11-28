@@ -1,7 +1,7 @@
 MAKEFLAGS += --no-print-directory
 .DEFAULT_GOAL := help
 
-CORE_TARGETS := core-test-up core-test-env core-test-reset core-test-install core-test-unit core-test-file core-test-shard core-test-tia core-test-release core-test-execution core-test-observability core-test-network core-test-platforms core-test-acquisition core-test-documents core-test-ai core-test-concurrency core-test-e2e core-test-faults core-test-load core-quality core-test-regression core-test-report core-test-down
+CORE_TARGETS := core-test-up core-test-env core-test-reset core-test-install core-test-unit core-test-file core-test-shard core-test-tia core-test-release core-test-release-sample core-test-execution core-test-observability core-test-network core-test-platforms core-test-acquisition core-test-documents core-test-ai core-test-concurrency core-test-e2e core-test-faults core-test-load core-quality core-test-regression core-test-report core-test-down
 .PHONY: $(CORE_TARGETS)
 $(CORE_TARGETS):
 	@python3 docker/tests/process-core/rig.py $@

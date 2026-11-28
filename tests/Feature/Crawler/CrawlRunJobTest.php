@@ -181,7 +181,6 @@ test('Process archive continuation preserves the original typed filter and route
         new TransportDeferred(NetworkDeferralReason::RateLimit, new RetryAt(new DateTimeImmutable('+1 hour'))),
         new TransportSucceeded(ContractRuntime::response($body, 'text/csv')),
         new TransportSucceeded(ContractRuntime::response($body, 'text/csv')),
-        new TransportSucceeded(ContractRuntime::response($body, 'text/csv')),
     ]);
     bindListingDelivery($outbound);
     listingDelivery($work)->handle(app(WorkRunner::class));
@@ -192,11 +191,8 @@ test('Process archive continuation preserves the original typed filter and route
     $crawl = new ProcessUuid(DB::table('prc_crawl_runs')->where('process_run_id', $run->value)->sole()->id);
     $pass = F::next($crawl) ?? throw new LogicException('Missing stable pass');
     listingDelivery($pass['work'])->handle(app(WorkRunner::class));
-    // A retried pass is best-observed; two later uninterrupted full passes prove stability.
-    expect(DB::table('prc_process_runs')->where('id', $run->value)->value('discovery_outcome'))->toBe('collecting');
-    $stable = F::next($crawl) ?? throw new LogicException('Missing uninterrupted closing pass');
-    listingDelivery($stable['work'])->handle(app(WorkRunner::class));
-    expect($outbound->plans)->toHaveCount(4)->and(Procurement::query()->where('source_identity_value', '00042')->exists())->toBeTrue()
+    // Deferral before the first page does not interrupt an offset pass; the two full passes match.
+    expect($outbound->plans)->toHaveCount(3)->and(Procurement::query()->where('source_identity_value', '00042')->exists())->toBeTrue()
         ->and(DB::table('prc_process_runs')->where('id', $run->value)->value('discovery_outcome'))->toBe('complete');
     foreach ($outbound->plans as $plan) {
         parse_str((string) parse_url($plan->url->reveal(), PHP_URL_QUERY), $query);

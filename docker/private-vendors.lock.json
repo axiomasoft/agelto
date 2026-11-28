@@ -27,7 +27,7 @@
         "host": "github.com",
         "path": "axiomasoft/proxyma"
       },
-      "commit": "a61d7b9254c74d01a06668e3bf4c5bb4f3ed2c4a",
+      "commit": "363354e180a9de76d7cfb80805b8444600554b6f",
       "packages": [
         {
           "name": "axiomasoft/proxyma",

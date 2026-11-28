@@ -4039,7 +4039,7 @@
       "replacements": [
         {
           "file": "tests/Feature/Crawler/ArchiveWindowScannerTest.php",
-          "name": "Process archive split preserves overlapping inclusive cents and immutable filter bounds"
+          "name": "разбивает архивный диапазон на смежные копейки и сохраняет фильтр"
         },
         {
           "file": "tests/Feature/Crawler/ArchiveWindowScannerTest.php",
@@ -4075,7 +4075,7 @@
       "replacements": [
         {
           "file": "tests/Feature/Crawler/ArchiveWindowScannerTest.php",
-          "name": "Process archive minimum interval cap retains explicit debt with no false coverage"
+          "name": "минимальный интервал сохраняет долг без ложного покрытия"
         }
       ],
       "reason": "P2.18 replaces FreshRunProcessor/ArchiveWindowScanner/DeltaScanProcessor/BacklogRescanProcessor with one Process listing mechanism. The accepted contract removes known-row/only_fresh stopping, first-number completeness, scan-gap metrics, profile-wide busy locks, archive-profile borrowing, unversioned cursor defaults and mutable recovery scope. Replacements require full content stability and precise coverage/debt, inclusive price partitions, immutable saved filter/routes, independent command intents, authoritative pause and explicit hard-work cancellation. Actual two-process PostgreSQL claim/expiry checks preserve both backlog and delta owner scenarios; no concurrency mock replaces them.",
@@ -4111,7 +4111,7 @@
         },
         {
           "file": "tests/Feature/Crawler/ArchiveWindowScannerTest.php",
-          "name": "Process archive split preserves overlapping inclusive cents and immutable filter bounds"
+          "name": "разбивает архивный диапазон на смежные копейки и сохраняет фильтр"
         }
       ],
       "reason": "P2.18 replaces FreshRunProcessor/ArchiveWindowScanner/DeltaScanProcessor/BacklogRescanProcessor with one Process listing mechanism. The accepted contract removes known-row/only_fresh stopping, first-number completeness, scan-gap metrics, profile-wide busy locks, archive-profile borrowing, unversioned cursor defaults and mutable recovery scope. Replacements require full content stability and precise coverage/debt, inclusive price partitions, immutable saved filter/routes, independent command intents, authoritative pause and explicit hard-work cancellation. Actual two-process PostgreSQL claim/expiry checks preserve both backlog and delta owner scenarios; no concurrency mock replaces them.",
@@ -5167,7 +5167,7 @@
       "replacements": [
         {
           "file": "tests/Feature/Crawler/CardCollectDetailsTest.php",
-          "name": "typed EIS unknown procedure fails before acquiring a network request"
+          "name": "ЕИС отклоняет карточку неизвестной процедуры до первой отправки"
         }
       ],
       "reason": "Typed EIS plans preserve per-tab requested identity and optional NotApplicable tabs. Status refresh is common-info-only; full detail revalidation reads declared sections and revalidates control. Real HTTP timeout checks preserve null/200 status, 0/12415 received bytes and safe enum outcomes; canonical route/permit checks retain retry and no-fallback accounting. Raw retention remains optional with gzip, while physical identities replace legacy raw/html paths.",
@@ -11503,7 +11503,7 @@
       "replacements": [
         {
           "file": "tests/Feature/Filament/CrawlerFormTest.php",
-          "name": "fresh and archive profiles cannot reintroduce the legacy stop policy with data set \"(App\\Enums\\Procurement\\Process\\AcquisitionKind Enum (Fresh, 'fresh'))\""
+          "name": "fresh and archive profiles cannot reintroduce the legacy stop policy with data set \"(App\\Enums\\Procurement\\Process\\Core\\AcquisitionKind Enum (Fresh, 'fresh'))\""
         }
       ],
       "reason": "P2.18 removes acquisition execution options and URL preview from the profile form. Typed filter persistence and emitted mandatory CSV columns/classifier scope remain verified through the real form and the typed request planner. Process owns queue routing and retries; no profile field can restore the removed lane, source fallback or early-stop mechanism. D17 removes the stop policy for both fresh and archive; full-content stability and coverage replace first-known-row termination.",
@@ -11517,7 +11517,7 @@
       "replacements": [
         {
           "file": "tests/Feature/Filament/CrawlerFormTest.php",
-          "name": "fresh and archive profiles cannot reintroduce the legacy stop policy with data set \"(App\\Enums\\Procurement\\Process\\AcquisitionKind Enum (Archive, 'archive'))\""
+          "name": "fresh and archive profiles cannot reintroduce the legacy stop policy with data set \"(App\\Enums\\Procurement\\Process\\Core\\AcquisitionKind Enum (Archive, 'archive'))\""
         }
       ],
       "reason": "P2.18 removes acquisition execution options and URL preview from the profile form. Typed filter persistence and emitted mandatory CSV columns/classifier scope remain verified through the real form and the typed request planner. Process owns queue routing and retries; no profile field can restore the removed lane, source fallback or early-stop mechanism. D17 removes the stop policy for both fresh and archive; full-content stability and coverage replace first-known-row termination.",
@@ -25058,6 +25058,20 @@
       ],
       "reason": "Replace the developer-local real archive with a tracked synthetic archive exercising the parser, mapper, validation and exact position retention.",
       "contract": "Process Core runtime inputs; hermetic GSFX format regression."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Crawler/AuditRemediationTest.php",
+        "name": "просроченный deadline закрывает тело до его чтения"
+      },
+      "replacements": [
+        {
+          "file": "tests/Feature/ProcessCore/Network/ReplayDispatchDeadlineTest.php",
+          "name": "истекший срок запрещает отправку и освобождает ресурсы transport"
+        }
+      ],
+      "reason": "The retired response reader was replaced by the physical send capability; the replacement verifies refusal before socket I/O and cleanup of transport resources.",
+      "contract": "Process Core outbound deadline, no-send and resource cleanup."
     }
   ]
 }

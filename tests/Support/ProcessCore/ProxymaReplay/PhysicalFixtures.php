@@ -19,6 +19,7 @@ use Proxyma\Domain\Execution\OwnerRef;
 use Proxyma\Domain\Execution\PreparedHeaders;
 use Proxyma\Domain\Execution\RequestTimeoutPolicy;
 use Proxyma\Domain\Execution\ResolvedSecret;
+use Proxyma\Domain\Execution\ResponseProfile;
 use Proxyma\Domain\Execution\RouteSelection;
 use Proxyma\Domain\Execution\SafeUrl;
 use Proxyma\Domain\Execution\ScheduledPermit;
@@ -34,6 +35,21 @@ use Tests\Support\ProcessCore\ProxymaReplay\WireServer;
 
 trait PhysicalFixtures
 {
+    /** @return list<string> */
+    protected function openResponseSinks(): array
+    {
+        $paths = [];
+        foreach (glob('/proc/self/fd/*') ?: [] as $descriptor) {
+            $target = @readlink($descriptor);
+            if (is_string($target) && str_starts_with($target, sys_get_temp_dir().'/php')) {
+                $paths[] = $target;
+            }
+        }
+        sort($paths);
+
+        return $paths;
+    }
+
     protected function initializePhysicalFixture(): void
     {
         $this->initializeQuotaFixture();
@@ -44,7 +60,8 @@ trait PhysicalFixtures
 
     protected function physicalPrepared(string $path = '/ok', string $listener = 'http', ?string $proxyListener = null,
         bool $trustOrigin = true, bool $trustProxy = true, ?string $password = null, ?RequestTimeoutPolicy $timeouts = null,
-        ?string $originBundle = null, bool $pinProxy = true, int $proxyPortOffset = 0): array
+        ?string $originBundle = null, bool $pinProxy = true, int $proxyPortOffset = 0,
+        ?ResponseProfile $responseProfile = null): array
     {
         $scope = $this->transactions->scope;
         $url = new SafeUrl($this->socket->url($path, $listener));
@@ -91,7 +108,8 @@ trait PhysicalFixtures
         $operation = new OperationCorrelation($id, new OwnerRef($this->tenant, 'standalone', $id->value, 'fixture-token'), new DateTimeImmutable('+1 minute'), 'wire:'.$id->value);
         $this->operations->create($operation, $this->catalog['profile'], $targetId, $timeouts);
         $request = new WireRequest($id, Uuid::random(), $targetId, 1, 'POST', $url, $timeouts, $operation->deadlineAt,
-            new PreparedHeaders(['Authorization' => 'Bearer fixture-provider-secret', 'X-Fixture' => 'sealed']), WireBody::fromString('sealed-body'));
+            new PreparedHeaders(['Authorization' => 'Bearer fixture-provider-secret', 'X-Fixture' => 'sealed']), WireBody::fromString('sealed-body'),
+            responseProfile: $responseProfile ?? new ResponseProfile);
         $policy = new DestinationPolicy($dns, [$targetId->value => ['origin.test' => ['127.0.0.1']]], [$url->origin->port]);
         $context = (new ReflectionClass(ExecutionContext::class))->newInstanceWithoutConstructor();
         $destination = $policy->resolve($url, $context, 500, $target);

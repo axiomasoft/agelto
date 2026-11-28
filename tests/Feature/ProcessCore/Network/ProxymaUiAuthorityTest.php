@@ -277,6 +277,8 @@ test('owner форма сохраняет scheduling и отвергает gener
     $page = Livewire::test(EditCrawler::class,
         ['record' => $crawler->id]);
     $filter = $crawler->filter->toArray();
+    $page->assertSet('data.filter.publishedFrom', substr($filter['publishedFrom'], 0, 10))
+        ->assertSet('data.filter.publishedTo', substr($filter['publishedTo'], 0, 10));
     $page->fillForm(['schedule' => '15 * * * *'])->call('save')->assertHasNoFormErrors();
     expect($crawler->refresh()->schedule)->toBe('15 * * * *')->and($crawler->filter->toArray())->toEqual($filter);
     $from = AcquisitionProfileFixtures::sourceDay()->addDay();

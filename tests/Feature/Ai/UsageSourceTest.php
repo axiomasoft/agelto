@@ -40,7 +40,9 @@ test('дневная ось режет расход по календарным 
 });
 
 test('два вызова в ОДНИ сутки дают одну дневную строку', function (): void {
-    $moment = CarbonImmutable::now();
+    // 00:05 and 00:15 of the current day stay in the same reporting partition,
+    // regardless of when this test happens to run.
+    $moment = CarbonImmutable::now()->startOfDay()->addMinutes(15);
 
     ProviderReportFixtures::store(['cost_micros' => 1_000, 'called_at' => $moment]);
     ProviderReportFixtures::store(['cost_micros' => 500, 'called_at' => $moment->subMinutes(10)]);

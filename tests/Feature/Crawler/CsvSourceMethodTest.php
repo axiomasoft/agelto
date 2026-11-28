@@ -5,12 +5,12 @@ declare(strict_types=1);
 use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
 use App\Exceptions\Procurement\Crawler\SourceResponseLimitExceeded;
 use App\Services\Platforms\Eis\Csv\EisCsvParser;
-use App\Services\Procurement\Network\BoundedResponseReader;
-use GuzzleHttp\Psr7\Response as PsrResponse;
-use GuzzleHttp\Psr7\Utils;
-use Illuminate\Http\Client\Response;
+use App\Services\Procurement\Proxyma\Transport\CurlTransferState;
 use Illuminate\Support\Facades\DB;
+use Proxyma\Domain\Execution\ResponseProfile;
 use Tests\Support\Platforms\Eis\EisListingFactsFixtures as C;
+
+require_once dirname(__DIR__, 2).'/Support/ProcessCore/ProxymaReplay/ResponseFixtures.php';
 
 test('поле в кавычках с переводом строки остаётся одной записью листинга', function (): void {
     $body = C::body([C::row('№0001', ['Наименование закупки' => "Ремонт кровли\r\nи фасада"]), C::row('№0002')]);
@@ -36,9 +36,12 @@ test('битая запись учитывается в rowsTotal, чтобы н
 test('лимиты bytes records и field останавливают fresh без продвижения курсора', function (string $limit, int $value): void {
     $body = C::body([C::row('1'), C::row('2')]);
     if ($limit === 'response_max_bytes') {
-        $stream = Utils::streamFor($body);
-        expect(fn () => (new BoundedResponseReader)->read(new Response(new PsrResponse(200, [], $stream)), $value, null))
-            ->toThrow(SourceResponseLimitExceeded::class)->and($stream->isReadable())->toBeFalse();
+        $state = new CurlTransferState(new ResponseProfile('raw', $value, $value, $value), responseScope(), $value);
+        expect($state->writeChunk($body))->toBe(0)->and($state->limit)->toBeTrue();
+        $reader = $state->reader ?? throw new LogicException('Response sink was not created.');
+        $stream = (new ReflectionProperty($reader, 'stream'))->getValue($reader);
+        $reader->close();
+        expect(is_resource($stream))->toBeFalse();
     } elseif ($limit === 'csv_max_records') {
         expect(fn () => (new EisCsvParser)->parseBatch($body, maxRecords: $value))->toThrow(SourceResponseLimitExceeded::class);
     } else {

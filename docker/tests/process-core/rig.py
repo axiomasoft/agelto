@@ -36,7 +36,7 @@ VOLUMES = {"core-postgres", "core-redis", "core-objects", "core-storage", "core-
            "core-prompts", "core-estimate-prompts"}
 RUNTIME_INPUTS = ROOT / "docker/tests/process-core/runtime-inputs"
 FUTURE = set()
-IMPLEMENTED = {"faults", "load", "file", "shard", "tia", "release", "ai", "documents", "up", "env", "reset", "install", "unit", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "e2e", "regression", "report", "down"}
+IMPLEMENTED = {"faults", "load", "file", "shard", "tia", "release", "release-sample", "ai", "documents", "up", "env", "reset", "install", "unit", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "e2e", "regression", "report", "down"}
 RESET_SUITES = {"faults", "load", "shard", "tia", "execution", "concurrency", "observability",
                 "network", "platforms", "acquisition", "documents", "ai", "e2e", "regression"}
 GSFX_FIXTURE = "tests/Fixtures/ProcessCore/synthetic-estimate.gsfx"
@@ -279,7 +279,23 @@ def app(*args, check=True):
     return compose("exec", "-T", "app", "php", "tests/Support/ProcessCore/artisan.php", *args, check=check)
 
 
+def verify_composer_install(root=ROOT):
+    """Refuse test evidence from a vendor tree resolved against another lock file."""
+    lock = json.loads((root / "composer.lock").read_text())
+    installed = json.loads((root / "vendor/composer/installed.json").read_text())
+
+    def identity(package):
+        return (package.get("version"), package.get("type"),
+                package.get("source", {}).get("reference"), package.get("dist", {}).get("reference"))
+
+    expected = {package["name"]: identity(package) for package in lock["packages"] + lock["packages-dev"]}
+    actual = {package["name"]: identity(package) for package in installed["packages"]}
+    differing = sorted(name for name in expected.keys() | actual.keys() if expected.get(name) != actual.get(name))
+    require(not differing, "installed Composer packages differ from composer.lock: " + ", ".join(differing))
+
+
 def readiness():
+    verify_composer_install()
     identity()
     require(pg("SELECT current_database();", "agelto_test") == "agelto_test", "test DB not ready")
     pending = app("migrate:status", "--no-interaction").stdout
@@ -806,6 +822,7 @@ def bounded_pest(folder, name, command, log_path, options=()):
 
 
 def suite(folder, name):
+    verify_composer_install()
     selected = [single_test_path()] if name == "file" else None
     shard = shard_selection() if name == "shard" else None
     if name == "unit":
@@ -886,6 +903,7 @@ def suite(folder, name):
 
 
 def quality(folder):
+    verify_composer_install()
     identity()
     verify_fixture_inputs()
     prepare_runtime()
@@ -917,7 +935,15 @@ def quality(folder):
     return results
 
 
-def release_quality(folder):
+def release_group(sample):
+    group = os.environ.get("PROCESS_CORE_RELEASE_GROUP", "") if sample else "all"
+    require(group in ({"serial", "profile", "coverage", "random", "selected"} if sample else {"all"}),
+            "unknown release quality sample group")
+    return group
+
+
+def release_quality(folder, sample=False):
+    group = release_group(sample)
     readiness()
     stop_workers()
     verify_fixture_inputs()
@@ -925,7 +951,7 @@ def release_quality(folder):
     result = run(["env", "COMPOSE_PROJECT_NAME=" + PROJECT, "ENV_FILE=" + str(ENV_FILE),
                   "RELEASE_QUALITY_EVIDENCE_DIR=" + str(folder / "release-quality"),
                   "PROCESS_CORE_SUITE_TIMEOUT=" + str(suite_budget("regression")),
-                  "bash", ROOT / "docker/scripts/collect-release-quality-evidence.sh"], check=False)
+                  "bash", ROOT / "docker/scripts/collect-release-quality-evidence.sh", group], check=False)
     (folder / "release-quality.log").write_text(result.stdout + result.stderr)
     require(result.returncode == 0, "release quality failed; see release-quality.log")
 
@@ -955,13 +981,17 @@ def main(command):
 def execute(command, name):
     folder, result = new_report(command)
     try:
+        if name in RESET_SUITES | {"env", "reset", "file", "unit", "install", "release", "release-sample"} or command == "core-quality":
+            verify_composer_install()  # Fail before resetting any isolated state.
         if name == "load":
             result["width"] = load_width()  # Reject invalid input before reset or any mutation.
         if name in {"install", "e2e", "faults", "load", "regression"} or command == "core-quality":
             result["runtime"] = acceptance_runtime()
         if name == "shard":
             shard_selection()
-        if name in RESET_SUITES | {"reset", "install", "release"}:
+        if name == "release-sample":
+            release_group(True)  # Reject invalid input before reset or any mutation.
+        if name in RESET_SUITES | {"reset", "install", "release", "release-sample"}:
             clock = install_clock()
             result["install_clock"] = clock
             write_json(folder / "install-clock.json", clock)
@@ -976,6 +1006,7 @@ def execute(command, name):
                 require(composer_on_bridge(folder, "composer-install", "install", "--no-scripts", "--no-interaction",
                                            "--no-progress", "--prefer-dist", install=True) == 0,
                         "Composer installation failed; see composer-install.log")
+            verify_composer_install()
             compose("up", "-d", "--no-build" if prebuilt == "1" else "--build", "--wait",
                     "app", "core-postgres", "core-redis", "object-storage",
                     "fixture-http", "fixture-proxy", "fake-gemini")
@@ -995,13 +1026,13 @@ def execute(command, name):
             write_json(folder / "install-comparison.json", {"first": before, "second": after})
             require(before == after, "two clean installs produced different manifests")
             result["manifests"] = after
-        elif name in RESET_SUITES | {"file", "unit", "release"}:
-            if name in RESET_SUITES | {"release"}:
+        elif name in RESET_SUITES | {"file", "unit", "release", "release-sample"}:
+            if name in RESET_SUITES | {"release", "release-sample"}:
                 reset_folder = folder / "clean-reset"
                 reset_folder.mkdir()
                 reset(reset_folder, clock=clock)
-            if name == "release":
-                release_quality(folder)
+            if name in {"release", "release-sample"}:
+                release_quality(folder, sample=name == "release-sample")
             else:
                 result["tests"] = suite(folder, name)
         elif command == "core-quality":
@@ -1022,6 +1053,7 @@ def execute(command, name):
 
 
 def acceptance_runtime():
+    verify_composer_install()
     observed = identity()
     configured = config_identity()["services"]
     images = {service: inspect_json("image", configuration["image"])["Id"]

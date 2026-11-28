@@ -3,12 +3,14 @@
 declare(strict_types=1);
 
 use App\Filament\Resources\Procurement\Ai\LlmRoutes\LlmRouteResource;
+use App\Filament\Resources\Procurement\Ai\LlmRoutes\Pages\CreateAiRoute;
 use App\Filament\Resources\Procurement\Ai\LlmRoutes\Pages\ListAiRoutes;
 use App\Filament\Resources\Procurement\Ai\Providers\Pages\ListProviders;
 use App\Guards\Admin\Roles\SuperAdminRole;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
 use App\Models\User;
+use Filament\Forms\Components\Select;
 use Livewire\Livewire;
 
 use function Pest\Laravel\actingAs;
@@ -30,8 +32,15 @@ test('страница создания модели для задачи ото�
     get(LlmRouteResource::getUrl('create'))
         ->assertOk()
         ->assertSee('Назначение модели')
-        ->assertSee('Скрининг документа')
-        ->assertSee($provider->code);
+        ->assertSee('Скрининг документа');
+
+    Livewire::test(CreateAiRoute::class)
+        ->assertFormFieldExists('provider_id', function (Select $field) use ($provider): bool {
+            return collect($field->getOptionsForJs())->contains(
+                fn (array $option): bool => $option['label'] === $provider->code
+                    && (string) $option['value'] === (string) $provider->getKey(),
+            );
+        });
 });
 
 test('маршрут показывает код провайдера и модель вместо технического идентификатора', function (): void {

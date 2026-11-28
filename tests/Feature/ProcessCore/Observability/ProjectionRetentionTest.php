@@ -87,7 +87,11 @@ test('FK RESTRICT защищает историю от неупорядочен�
     $event = Fixture::transition($work, 'succeeded', null, 'running');
     app(MetricProjector::class)->apply($event);
 
-    expect(LedgerFixtures::sqlState(fn () => DB::table('prc_process_transitions')->where('event_id', $event->value)->delete()))->toBe('23503');
+    $constraint = DB::selectOne("SELECT confdeltype FROM pg_constraint WHERE conrelid = 'prc_process_projection_receipts'::regclass
+        AND confrelid = 'prc_process_transitions'::regclass AND contype = 'f'");
+    expect($constraint->confdeltype)->toBe('r')
+        ->and(LedgerFixtures::sqlState(fn () => DB::table('prc_process_transitions')->where('event_id', $event->value)->delete()))->toBe('23001')
+        ->and(DB::table('prc_process_transitions')->where('event_id', $event->value)->exists())->toBeTrue();
 
     config()->set('process.projection.prune_batch', 1);
     expect(fn () => app(ProjectionRetention::class)->prune([$event, LedgerFixtures::uuid()]))->toThrow(InvalidArgumentException::class);

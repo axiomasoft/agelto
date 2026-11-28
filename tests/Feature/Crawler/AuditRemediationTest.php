@@ -11,7 +11,6 @@ use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Enums\Procurement\Network\TrafficClass;
 use App\Enums\Procurement\Process\Core\StageCode;
 use App\Enums\Procurement\Process\Outcomes\DeferralReason;
-use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
 use App\Jobs\Procurement\Process\ExecuteWorkJob;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\RawArtifact;
@@ -24,18 +23,15 @@ use App\Services\Procurement\Acquisition\Detail\SnapshotFinalizer;
 use App\Services\Procurement\Acquisition\Orchestration\AcquisitionArtifacts;
 use App\Services\Procurement\Acquisition\Orchestration\AcquisitionScheduler;
 use App\Services\Procurement\Acquisition\Orchestration\AcquisitionTick;
-use App\Services\Procurement\Network\BoundedResponseReader;
 use App\Services\Procurement\Process\Daemons\RelayDaemon;
 use App\Services\Procurement\Process\Execution\QueueWorkWakePublisher;
 use App\Services\Procurement\Process\Execution\StageQueueMap;
 use App\Services\Procurement\Process\Execution\WorkFeeder;
 use App\Services\Procurement\Process\Execution\WorkFinalizer;
+use App\Services\Procurement\Proxyma\Transport\CurlTransferState;
 use App\Support\SecretRedactor;
 use Database\Factories\Platforms\Eis\EisCrawlerFactory;
-use GuzzleHttp\Psr7\Response as PsrResponse;
-use GuzzleHttp\Psr7\Utils;
 use Illuminate\Database\QueryException;
-use Illuminate\Http\Client\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -43,12 +39,15 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Proxyma\Domain\Execution\ResponseProfile;
 use Tests\Support\Platforms\Contract\ContractRuntime;
 use Tests\Support\ProcessCore\AcquisitionProfileFixtures;
 use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;
 use Tests\Support\ProcessCore\LedgerFixtures;
 use Tests\Support\ProcessCore\ListingFixtures;
+
+require_once dirname(__DIR__, 2).'/Support/ProcessCore/ProxymaReplay/ResponseFixtures.php';
 
 beforeEach(function (): void {
     Storage::fake('s3');
@@ -196,18 +195,17 @@ test('acquisition raw catalog respects independently configured listing and deta
 });
 
 test('распакованное тело ограничено фактическими байтами и поток закрывается после отказа', function (): void {
-    $input = Utils::streamFor(str_repeat('x', 8193));
-    $response = new Response(new PsrResponse(200, ['Content-Length' => '1'], $input));
-    expect(fn () => app(BoundedResponseReader::class)->read($response, 8192, microtime(true) + 1))
-        ->toThrow(RuntimeException::class, 'decoded bytes');
-    expect($input->isReadable())->toBeFalse();
-});
-
-test('просроченный deadline закрывает тело до его чтения', function (): void {
-    $input = Utils::streamFor('payload');
-    expect(fn () => app(BoundedResponseReader::class)->read(new Response(new PsrResponse(200, [], $input)), 100, microtime(true) - 1))
-        ->toThrow(OutboundRequestDeadlineExceeded::class);
-    expect($input->isReadable())->toBeFalse();
+    $state = new CurlTransferState(new ResponseProfile('raw', 8192, 8192, 8192), responseScope(), 8192);
+    $state->writeHeader("Content-Encoding: gzip\r\n");
+    $wire = gzencode(str_repeat('x', 8193));
+    expect(strlen($wire))->toBeLessThan(8192)
+        ->and($state->writeChunk($wire))->toBe(0)
+        ->and($state->limit)->toBeTrue();
+    $reader = $state->reader ?? throw new LogicException('Response sink was not created.');
+    $stream = (new ReflectionProperty($reader, 'stream'))->getValue($reader);
+    expect($reader->decodedBytes())->toBe(8193);
+    $reader->close();
+    expect(is_resource($stream))->toBeFalse();
 });
 
 test('граница суток хранит 23 и 25 часов в зоне с DST', function (string $date, int $hours): void {

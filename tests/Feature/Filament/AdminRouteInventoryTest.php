@@ -56,6 +56,15 @@ function committedAdminRouteInventory(): array
 function declaredAdminRouteExtensions(): array
 {
     $routes = [
+        ['attempts-page', 'filament.admin.pages.attempts-page', 'Proxyma\\Filament\\Pages\\AttemptsPage'],
+        ['audit-page', 'filament.admin.pages.audit-page', 'Proxyma\\Filament\\Pages\\AuditPage'],
+        ['bindings-page', 'filament.admin.pages.bindings-page', 'Proxyma\\Filament\\Pages\\BindingsPage'],
+        ['budgets-page', 'filament.admin.pages.budgets-page', 'Proxyma\\Filament\\Pages\\BudgetsPage'],
+        ['health-page', 'filament.admin.pages.health-page', 'Proxyma\\Filament\\Pages\\HealthPage'],
+        ['policy-inspector', 'filament.admin.pages.policy-inspector', 'Proxyma\\Filament\\Pages\\PolicyInspector'],
+        ['proxyma-endpoints', 'filament.admin.pages.proxyma-endpoints', 'Proxyma\\Filament\\Resources\\Pages\\Endpoints'],
+        ['proxyma-profiles', 'filament.admin.pages.proxyma-profiles', 'Proxyma\\Filament\\Resources\\Pages\\RouteProfiles'],
+        ['proxyma-routes', 'filament.admin.pages.proxyma-routes', 'Proxyma\\Filament\\Resources\\Pages\\Routes'],
         ['azguard-doctor', 'filament.admin.pages.azguard-doctor', 'AzGuard\Filament\Pages\DoctorPage'],
         ['azguard-panels', 'filament.admin.pages.azguard-panels', 'AzGuard\Filament\Pages\PanelsPage'],
         ['azguard-permission-grants', 'filament.admin.resources.azguard-permission-grants.index', 'AzGuard\Filament\Resources\PermissionGrantResource\Pages\ListPermissionGrants'],
@@ -79,6 +88,10 @@ test('runtime admin routes exactly match committed resource and role matrix', fu
     $runtimeRoutes = adminRouteInventory();
     $historical = committedAdminRouteInventory();
     $retired = [
+        'filament.admin.pages.crawler-proxy-settings',
+        'filament.admin.resources.procurement.crawler.proxies.index',
+        'filament.admin.resources.procurement.crawler.proxies.create',
+        'filament.admin.resources.procurement.crawler.proxies.edit',
         'filament.admin.resources.direct-grants.index',
         'filament.admin.resources.direct-grants.create',
         'filament.admin.pages.doctor-page',
@@ -94,20 +107,12 @@ test('runtime admin routes exactly match committed resource and role matrix', fu
     expect(array_column($historical, 'name'))->toContain(...$retired);
     // Explicit /delta; the frozen historical matrix remains byte-identical.
     $current = array_values(array_filter($historical, static fn (array $route): bool => ! in_array($route['name'], $retired, true)));
-    foreach ($current as &$route) {
-        if ($route['name'] === 'filament.admin.pages.crawler-proxy-settings') {
-            $route['name'] = 'filament.admin.pages.network-route-profiles';
-            $route['uri'] = 'admin/network-route-profiles';
-            $route['action'] = str_replace('CrawlerProxySettingsPage', 'NetworkRouteProfilesPage', $route['action']);
-        }
-    }
-    unset($route);
     $matrixRoutes = [...$current, ...declaredAdminRouteExtensions()];
     usort($matrixRoutes, static fn (array $a, array $b): int => [$a['uri'], $a['name']] <=> [$b['uri'], $b['name']]);
     usort($runtimeRoutes, static fn (array $a, array $b): int => [$a['uri'], $a['name']] <=> [$b['uri'], $b['name']]);
 
     expect($runtimeRoutes)
-        ->toHaveCount(61)
+        ->toHaveCount(66)
         ->toEqual($matrixRoutes)
         ->and(array_column($runtimeRoutes, 'name'))
         ->toHaveCount(count(array_unique(array_column($runtimeRoutes, 'name'))));

@@ -17,6 +17,8 @@ test('dev и prod разрешают четыре core daemon services на об
         '${COMPOSE_PROJECT_NAME:-agelto}' => 'agelto_daemon_contract',
         '${COMPOSE_PROJECT_NAME:?COMPOSE_PROJECT_NAME is required}' => 'agelto_daemon_contract',
         '${IMAGE_TAG:?IMAGE_TAG is required}' => 'daemon-contract',
+        '${IMAGE_TAG:+${IMAGE_REGISTRY:+${IMAGE_REGISTRY}/}agelto/app:}${IMAGE_TAG:-image-tag-required.invalid/agelto/app:unconfigured}' => 'agelto/app:daemon-contract',
+        '${IMAGE_TAG:+${IMAGE_REGISTRY:+${IMAGE_REGISTRY}/}agelto/postgres:}${IMAGE_TAG:-image-tag-required.invalid/agelto/postgres:unconfigured}' => 'agelto/postgres:daemon-contract',
         '${HORIZON_STOP_GRACE_PERIOD:-370s}' => '370s',
     ]));
     $services = $compose['services'];
@@ -26,7 +28,8 @@ test('dev и prod разрешают четыре core daemon services на об
     expect(array_values(array_filter(array_keys($services), fn (string $name): bool => str_starts_with($name, 'process-'))))
         ->toBe(array_keys($roles))
         ->and($app['image'])->toBe($image)
-        ->and($app['secrets'])->toBe(['app_key', 'db_password', 'redis_password', 'minio_app_password'])
+        ->and($app['secrets'])->toBe(['app_key', 'proxyma_wire_digest_key', 'db_password', 'redis_password', 'minio_app_password'])
+        ->and($app['environment']['PROXYMA_WIRE_DIGEST_KEY_FILE'])->toBe('/run/secrets/proxyma_wire_digest_key')
         ->and($app['environment']['AWS_SECRET_ACCESS_KEY_FILE'])->toBe('/run/secrets/minio_app_password')
         ->and($services['doctor']['secrets'])->toBe($app['secrets'])
         ->and($services['horizon']['secrets'])->toBe($app['secrets'])

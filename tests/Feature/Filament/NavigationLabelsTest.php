@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Filament\Pages\Dashboard;
-use App\Filament\Pages\NetworkRouteProfilesPage;
 use App\Filament\Pages\PromptCompositionPage;
 use App\Filament\Resources\Procurement\Ai\Analyses\AnalysisResource;
 use App\Filament\Resources\Procurement\Ai\DatasetExamples\DatasetExampleResource;
@@ -13,7 +12,6 @@ use App\Filament\Resources\Procurement\Ai\Prompts\PromptResource;
 use App\Filament\Resources\Procurement\Ai\PromptSuggestions\PromptSuggestionResource;
 use App\Filament\Resources\Procurement\Ai\Providers\ProviderResource;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\CrawlerResource;
-use App\Filament\Resources\Procurement\Crawler\Proxies\ProxyResource;
 use App\Filament\Resources\Procurement\Estimates\EstimateResource;
 use App\Filament\Resources\Procurement\Health\PlatformChecks\PlatformCheckResource;
 use App\Filament\Resources\Procurement\OperationLogs\OperationLogResource;
@@ -27,6 +25,9 @@ use App\Filament\Resources\Procurement\Process\Work\WorkItemResource;
 use App\Filament\Resources\Procurement\Procurements\ProcurementResource;
 use Filament\Facades\Filament;
 use Filament\Navigation\NavigationGroup;
+use Proxyma\Filament\Resources\Pages\Endpoints;
+use Proxyma\Filament\Resources\Pages\RouteProfiles;
+use Proxyma\Filament\Resources\Pages\Routes;
 
 test('назначает всем обнаруженным ресурсам осмысленные русские navigation labels', function () {
     $panel = Filament::getPanel('admin');
@@ -43,7 +44,6 @@ test('назначает всем обнаруженным ресурсам ос
         StatusMappingResource::class => ['Площадки', 'Соответствие статусов', 30],
         PlatformCheckResource::class => ['Площадки', 'Проверки площадок', 40],
         CrawlerResource::class => ['Сбор данных', 'Задания сбора', 10],
-        ProxyResource::class => ['Сбор данных', 'Прокси-серверы', 30],
         FixtureResource::class => ['Качество анализа', 'Эталонные документы', 10],
         DatasetExampleResource::class => ['Качество анализа', 'Проверенные примеры', 20],
         ProviderResource::class => ['Настройка AI', 'AI-провайдеры', 10],
@@ -87,9 +87,13 @@ test('фиксирует точный порядок групп и application p
         'Система',
     ])->and(Dashboard::getNavigationLabel())->toBe('Обзор')
         ->and(Dashboard::getNavigationSort())->toBe(-100)
-        ->and(NetworkRouteProfilesPage::getNavigationGroup())->toBe('Сбор данных')
-        ->and(NetworkRouteProfilesPage::getNavigationLabel())->toBe('Профили маршрутов')
-        ->and(NetworkRouteProfilesPage::getNavigationSort())->toBe(40)
+        ->and(RouteProfiles::getNavigationGroup())->toBe('Proxyma')
+        ->and(RouteProfiles::getNavigationLabel())->toBe('Профили маршрутов')
+        ->and(Endpoints::getNavigationGroup())->toBe('Proxyma')
+        ->and(Endpoints::getNavigationLabel())->toBe('Узлы прокси')
+        ->and(Routes::getNavigationGroup())->toBe('Proxyma')
+        ->and(Routes::getNavigationLabel())->toBe('Маршруты')
+        ->and(Filament::getPanel('admin')->getPages())->toContain(RouteProfiles::class, Endpoints::class, Routes::class)
         ->and(PromptCompositionPage::getNavigationGroup())->toBe('Настройка AI')
         ->and(PromptCompositionPage::getNavigationLabel())->toBe('Сборка инструкции')
         ->and(PromptCompositionPage::getNavigationSort())->toBe(40);

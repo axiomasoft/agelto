@@ -430,7 +430,7 @@
             "adapter_version": "acquisition/1",
             "provenance": "P2.18 deterministic Process cutover assertions; manually reviewed scenario obligations and synthetic source rows; no external I/O.",
             "captured_at": "2026-10-31",
-            "sha256": "6a4c4f2305332fb4e1ff43be1cd4233258000eae22ab930f446c853f84857a77",
+            "sha256": "4f32dc48ba96729ec86ebaeeca1e59b4b467cfeae7e917f26edbd77832f309c2",
             "expected": {
                 "assessment": "exact_executed_replacements",
                 "schema_version": 1
@@ -1307,8 +1307,8 @@
         {
             "path": "tests/Feature/Crawler/ArchiveWindowScannerTest.php",
             "scenarios": [
-                "Process archive split preserves overlapping inclusive cents and immutable filter bounds",
-                "Process archive minimum interval cap retains explicit debt with no false coverage",
+                "разбивает архивный диапазон на смежные копейки и сохраняет фильтр",
+                "минимальный интервал сохраняет долг без ложного покрытия",
                 "Process archive publication failure rolls back the next page while retaining committed previous purchases",
                 "Process archive repeated page detection survives the persisted successor and drains both required split branches"
             ],
@@ -1362,7 +1362,6 @@
                 "direct raw catalog registration preserves the newest usage of an immutable repeated path",
                 "acquisition raw catalog respects independently configured listing and detail disks",
                 "распакованное тело ограничено фактическими байтами и поток закрывается после отказа",
-                "просроченный deadline закрывает тело до его чтения",
                 "граница суток хранит 23 и 25 часов в зоне с DST",
                 "частично покрытый месяц достраивается по границам а имя чужой таблицы не считается покрытием",
                 "секреты скрываются в URL SQL и вложенном контексте",
@@ -5950,6 +5949,7 @@
             "path": "tests/Feature/ProcessCore/Network/ReplayDispatchDeadlineTest.php",
             "scenarios": [
                 "latestStart после authorization запрещает activation или physical start с нулём socket bytes",
+                "истекший срок запрещает отправку и освобождает ресурсы transport",
                 "active SQL transaction запрещает physical preparation и consume без socket bytes",
                 "изменённый body после seal не получает claim и не отправляет socket bytes",
                 "изменённый CA bundle отвергается до consume и socket bytes",
@@ -6063,6 +6063,8 @@
                 "переменные окружения не меняют выбранный direct или proxy route",
                 "физический transport не следует redirect и не повторяет HTTP failures",
                 "различает timeout, truncation, connect и byte limit без повторного send",
+                "ограничивает распакованный ответ и освобождает временный файл при отказе",
+                "ограничивает wire bytes и освобождает временный файл при отказе",
                 "doctor запрещает HTTPS proxy без feature и SOCKS5h до enable",
                 "отказ TCP различает direct и proxy и не переключается на другой адрес",
                 "сохраняет sealed path и query без скрытой нормализации cURL"

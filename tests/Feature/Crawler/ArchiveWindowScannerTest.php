@@ -40,22 +40,22 @@ beforeEach(function (): void {
     F::bindLocal();
 });
 
-test('Process archive split preserves overlapping inclusive cents and immutable filter bounds', function (): void {
+test('разбивает архивный диапазон на смежные копейки и сохраняет фильтр', function (): void {
     $partitioner = new EisListingPartitioner(new EisListingPolicy(minIntervalCents: 1));
     $filter = new EisListingFilter(['123']);
     $root = $partitioner->plan($filter, '2026-01-01', '2026-01-01', priceFrom: '0.01', priceTo: '0.03')->windows[0]->cursor;
     $split = $partitioner->split($root, 1);
     $children = array_map(EisListingCursor::decode(...), $split->children);
     expect([$children[0]->lowCents, $children[0]->highCents])->toBe([1, 2])
-        ->and([$children[1]->lowCents, $children[1]->highCents])->toBe([2, 3])
+        ->and([$children[1]->lowCents, $children[1]->highCents])->toBe([3, 3])
         ->and($children[0]->filterHash->hex)->toBe($filter->fingerprint()->hex)
         ->and($partitioner->split($children[0]->envelope(), 3)->incompleteReason)->toBe(AssessmentReason::Overflow);
 });
 
-test('Process archive minimum interval cap retains explicit debt with no false coverage', function (): void {
+test('минимальный интервал сохраняет долг без ложного покрытия', function (): void {
     $run = F::run();
     $task = app(ListingStoreRepository::class)->task($run['input']);
-    $partitioner = new EisListingPartitioner(new EisListingPolicy(minIntervalCents: 100000000001));
+    $partitioner = new EisListingPartitioner(new EisListingPolicy(minIntervalCents: EisListingCursor::MAX_PRICE_CENTS));
     $split = $partitioner->split($task->rootCursor, 1);
     expect($split->children)->toBe([]);
     $page = new ListingPage(new ProcurementSummaries([]), 500,

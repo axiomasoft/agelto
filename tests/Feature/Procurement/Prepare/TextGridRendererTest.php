@@ -26,6 +26,31 @@ function buildXlsx(callable $fill): string
     return $path;
 }
 
+test('точка входа обработчика сохраняет объединённые ячейки и отклоняет превышение бюджета', function (): void {
+    $path = buildXlsx(function (Spreadsheet $spreadsheet): void {
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Смета');
+        $sheet->setCellValue('A1', 'Раздел');
+        $sheet->mergeCells('A1:B1');
+        $sheet->setCellValue('A3', 2);
+        $sheet->setCellValue('B3', '=A3*3');
+    });
+    $output = tempnam(sys_get_temp_dir(), 'grid_result_');
+    expect($output)->not->toBeFalse();
+
+    try {
+        expect(TextGridRenderer::runSubprocess($path, 'xlsx', 10, 100, $output))->toBe(0);
+        $result = json_decode(file_get_contents($output), true, flags: JSON_THROW_ON_ERROR);
+        expect($result['sheets'])->toBe(1)
+            ->and($result['rows'])->toBe(2)
+            ->and($result['text'])->toContain('## SHEET: Смета', "1\tРаздел\tРаздел", "3\t2\t6");
+        expect(TextGridRenderer::runSubprocess($path, 'xlsx', 10, 1, $output))->toBe(1);
+    } finally {
+        unlink($path);
+        unlink($output);
+    }
+});
+
 test('горизонтальный merge развёрнут в повтор значения по всем ячейкам диапазона', function () {
     $path = buildXlsx(function (Spreadsheet $spreadsheet) {
         $sheet = $spreadsheet->getActiveSheet();

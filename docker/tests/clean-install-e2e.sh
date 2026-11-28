@@ -59,7 +59,7 @@ export_e2e_artifacts() {
     if [[ -d "$output_dir" ]]; then
         mkdir -p "$results_dest"
         cp -R "$output_dir/." "$results_dest/" 2>/dev/null || true
-        rm -f "$results_dest/admin.json" 2>/dev/null || true
+        rm -f "$results_dest/admin.json" "$results_dest/operator.json" "$results_dest/analyst.json"
     fi
 }
 
@@ -180,7 +180,7 @@ fi
 E2E_BASE_URL="http://127.0.0.1:$app_port" \
 E2E_ADMIN_EMAIL="$admin_email" \
 E2E_ADMIN_PASSWORD_FILE="$candidate/.e2e-admin-password" \
-E2E_AUTH_FILE="$output_dir/admin.json" \
+E2E_AUTH_FILE="$candidate/.e2e-auth/$run_id/admin.json" \
 E2E_OUTPUT_DIR="$output_dir" \
 E2E_COMPOSE_PROJECT="$project" \
 E2E_COMPOSE_ENV_FILE="$e2e_env" \

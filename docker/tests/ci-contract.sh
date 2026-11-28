@@ -49,6 +49,9 @@ grep -Eq 'actions/cache/save@[0-9a-f]{40}' "$core_setup"
 grep -Fq "github.event_name == 'push'" "$ci_workflow"
 grep -Eq "runner\.os.*runner\.arch.*hashFiles\('composer\.lock', 'pnpm-lock\.yaml', 'pnpm-workspace\.yaml'\)" "$core_setup"
 grep -Fq 'make core-test-up' "$core_setup"
+grep -Fq 'php artisan filament:assets --no-interaction' "$core_setup"
+grep -Fq 'php artisan livewire:publish --assets --no-interaction' "$core_setup"
+grep -Fq 'DB_DATABASE: '\'':memory:'\''' "$core_setup"
 grep -Fq 'vendor_manifest.py --rows' "$vendor_setup"
 grep -Fq 'path: local/vendors/azguard' "$vendor_setup"
 grep -Fq 'path: local/vendors/proxyma' "$vendor_setup"
@@ -66,12 +69,12 @@ ci = (workflows / 'ci.yml').read_text()
 tia = (workflows / 'tia-baseline.yml').read_text()
 jobs = dict(re.findall(r'^  ([a-z][a-z0-9-]+):\n((?:^ {4,}.*\n|^\n)*)', ci.split('jobs:\n', 1)[1], re.M))
 for name, target in {'quality': 'core-quality', 'tests': 'core-test-shard',
-                     'release-quality': 'core-test-release', 'faults': 'core-test-faults',
+                     'release-samples': 'core-test-release-sample', 'faults': 'core-test-faults',
                      'load': 'core-test-load'}.items():
     assert './.github/actions/setup-core-test' in jobs[name], f'{name} must boot the isolated rig'
     assert f'run: make {target}' in jobs[name], f'{name} must run {target}'
 for event in ('schedule', 'workflow_dispatch', 'release'):
-    for name in ('release-quality', 'load'):
+    for name in ('release-samples', 'release-quality', 'load'):
         condition = re.search(r'^    if: (.*)$', jobs[name], re.M).group(1)
         assert f"github.event_name == '{event}'" in condition
         assert "'pull_request'" not in condition and "'push'" not in condition
@@ -83,10 +86,17 @@ assert 'run: make bootstrap MODE=dev' not in ci + tia
 assert 'make core-test-tia' in tia and './.github/actions/setup-core-test' in tia
 # DAG: path routing -> cheap preflight -> rig jobs -> one required gate.
 assert 'dorny/paths-filter@' in jobs['changes']
+browser_filter = jobs['changes'].split('            browser:\n', 1)[1].split('            image:\n', 1)[0]
+assert "'docker/tests/clean-install-e2e.sh'" in browser_filter
 for name in ('quality', 'tests', 'faults', 'e2e'):
     assert re.search(r'^    needs: \[changes, preflight\]$', jobs[name], re.M), f'{name} must wait for preflight'
-for name in ('release-quality', 'load'):
+for name in ('release-samples', 'load'):
     assert re.search(r'^    needs: preflight$', jobs[name], re.M), f'{name} must wait for preflight'
+assert re.search(r'^    needs: \[preflight, release-samples\]$', jobs['release-quality'], re.M)
+assert 'group: [serial, profile, coverage, random, selected]' in jobs['release-samples']
+assert 'PROCESS_CORE_RELEASE_GROUP: ${{ matrix.group }}' in jobs['release-samples']
+assert 'release-quality-groups.py verify' in jobs['release-quality']
+assert 'check-release-quality.py' in jobs['release-quality']
 for step in ('ci-contract.sh', 'unittest discover -s docker/tests/process-core', 'pint --test', 'phpstan analyse'):
     assert step in jobs['preflight'], f'preflight must run {step}'
 gate = jobs['ci-gate']
@@ -106,7 +116,7 @@ def check_gate(event, statuses, success):
 
 for event in ('schedule', 'release', 'workflow_dispatch'):
     check_gate(event, release, True)
-for name in ('changes', 'preflight', 'release-quality', 'faults', 'load', 'e2e', 'build-security'):
+for name in ('changes', 'preflight', 'release-samples', 'release-quality', 'faults', 'load', 'e2e', 'build-security'):
     check_gate('workflow_dispatch', {**release, name: 'skipped'}, False)
 check_gate('pull_request', {**release, 'load': 'skipped'}, True)
 for status in ('failure', 'cancelled'):
@@ -117,8 +127,11 @@ grep -Fq 'coverage_contract' docker/scripts/check-release-quality.py
 grep -Fq 'DocsIntegrityTest.php' docker/tests/process-core/rig.py
 grep -Fq '"audit", "--locked", "--no-interaction"' docker/tests/process-core/rig.py
 grep -Fq 'clean-install-e2e.sh' "$ci_workflow"
-grep -Fq 'E2E_ARTIFACT_DIR: .ci-artifacts' "$ci_workflow"
+grep -Fq 'E2E_ARTIFACT_DIR: ci-artifacts' "$ci_workflow"
+! grep -Fq '.ci-artifacts/' "$ci_workflow"
 grep -Fq 'E2E_ARTIFACT_DIR' docker/tests/clean-install-e2e.sh
+grep -Fq 'E2E_AUTH_FILE="$candidate/.e2e-auth/$run_id/admin.json"' docker/tests/clean-install-e2e.sh
+! grep -Fq 'E2E_AUTH_FILE="$output_dir/admin.json"' docker/tests/clean-install-e2e.sh
 grep -Fq 'export IMAGE_TAG="$image_tag"' docker/tests/clean-install-e2e.sh
 grep -Fq 'playwright-report/index.html' "$ci_workflow"
 grep -Fq 'playwright-report/**' "$ci_workflow"
