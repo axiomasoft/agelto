@@ -96,11 +96,13 @@ assert re.search(r'^    needs: \[preflight, coverage-shards\]$', jobs['coverage-
 assert re.search(r'^    needs: \[preflight, release-samples, coverage-merge\]$', jobs['release-quality'], re.M)
 assert 'group: [serial, profile, random, selected]' in jobs['release-samples']
 assert 'PROCESS_CORE_RELEASE_GROUP: ${{ matrix.group }}' in jobs['release-samples']
+assert 'check-sample-budget.py' in jobs['release-samples']
 assert 'PROCESS_CORE_RELEASE_GROUP: coverage-${{ matrix.shard }}' in jobs['coverage-shards']
 assert 'shard: [1, 2, 3, 4]' in jobs['coverage-shards']
 assert './.github/actions/setup-core-test' in jobs['coverage-merge']
 assert 'merge-coverage-shards.py' in jobs['coverage-merge']
 assert 'check-coverage-floor.py' in jobs['coverage-merge']
+assert 'check-sample-budget.py' in jobs['coverage-merge']
 assert 'release-quality-groups.py verify' in jobs['release-quality']
 assert 'check-release-quality.py' in jobs['release-quality']
 for step in ('ci-contract.sh', 'unittest discover -s docker/tests/process-core', 'pint --test', 'phpstan analyse'):

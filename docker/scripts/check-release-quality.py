@@ -43,6 +43,10 @@ def milliseconds(path: Path) -> int:
     return value
 
 
+def required_time_budget(duration: float) -> float:
+    return max(duration * 1.5, duration + 5000)
+
+
 def coverage(clover: Path, critical_paths: list[str], critical_floor: float) -> tuple[float, dict[str, float]]:
     root = element_tree.parse(clover).getroot()
     metrics = root.find('./project/metrics')
@@ -129,9 +133,9 @@ def main() -> None:
             raise SystemExit(f'Selected serial repetition {run} has divergent name/status set')
 
     serial_median = statistics.median(serial)
-    required_serial_budget = max(serial_median * 1.5, serial_median + 5000)
-    required_profile_budget = max(profile_duration * 1.5, profile_duration + 5000)
-    required_coverage_budget = max(coverage_duration * 1.5, coverage_duration + 5000)
+    required_serial_budget = required_time_budget(serial_median)
+    required_profile_budget = required_time_budget(profile_duration)
+    required_coverage_budget = required_time_budget(coverage_duration)
     configured = budget['budgets_milliseconds']
     for key, required in {
         'serial': required_serial_budget,

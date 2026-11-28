@@ -223,6 +223,21 @@ jobs:
         env:
           PROCESS_CORE_RELEASE_GROUP: ${{ matrix.group }}
         run: make core-test-release-sample
+      - name: Check this group's time budget immediately
+        if: matrix.group == 'serial' || matrix.group == 'profile'
+        shell: bash
+        env:
+          RELEASE_GROUP: ${{ matrix.group }}
+        run: |
+          python3 - <<'PY'
+          import os, subprocess
+          from pathlib import Path
+          group = os.environ['RELEASE_GROUP']
+          proofs = list(Path('storage/app/testing/process-core/reports').glob('*/release-quality/provenance-' + group + '.json'))
+          if len(proofs) != 1:
+              raise SystemExit(f'Expected one {group} proof, found {len(proofs)}')
+          subprocess.run(['python3', 'docker/scripts/check-sample-budget.py', group, 'tests/performance-budget.json', str(proofs[0].parent)], check=True)
+          PY
       - name: Stage this group's evidence
         shell: bash
         env:
@@ -319,11 +334,19 @@ jobs:
         run: |
           python3 docker/scripts/merge-coverage-shards.py ci-artifacts/release-quality-groups
           python3 docker/scripts/check-coverage-floor.py tests/performance-budget.json "ci-artifacts/release-quality-groups/release-quality-group-$GITHUB_SHA-coverage/coverage-clover.xml"
+          python3 docker/scripts/check-sample-budget.py coverage tests/performance-budget.json "ci-artifacts/release-quality-groups/release-quality-group-$GITHUB_SHA-coverage"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-quality-group-${{ github.sha }}-coverage
           path: ci-artifacts/release-quality-groups/release-quality-group-${{ github.sha }}-coverage/
           if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: coverage-merge-failure-${{ github.sha }}
+          path: ci-artifacts/release-quality-groups/
+          if-no-files-found: warn
           retention-days: 14
 
   release-quality:
