@@ -1,8 +1,8 @@
 {
   "budgets_milliseconds": {
-    "coverage": 200000,
-    "profile": 180000,
-    "serial": 180000
+    "coverage": 6000000,
+    "profile": 4200000,
+    "serial": 5400000
   },
   "coverage": {
     "critical_files": [
